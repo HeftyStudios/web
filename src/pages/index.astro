@@ -1,0 +1,91 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import IconBadge from "../components/IconBadge.astro";
+import { getClasses, siteMeta } from "../data/gameData";
+
+const classes = getClasses();
+const base = import.meta.env.BASE_URL;
+---
+
+<BaseLayout title="Arena Game Class Tome" description="Browse Arena Game classes, specialisations, and abilities.">
+  <section class="hero">
+    <span class="eyebrow">Arena Game Reference</span>
+    <h1>Classes, specialisations, and the spellbook behind them.</h1>
+    <p class="lede">
+      This static reference site is generated from the published Unity data bundle in
+      <code>@hefty-studios/arena-game-data</code>. Browse each class, inspect its specialisations, and drill into
+      detailed ability, buff, and debuff data without leaving the web.
+    </p>
+    <div class="cta-row">
+      <a class="button" href={`${base}spellbook`}>Open the Spellbook</a>
+      <span class="badge">{siteMeta.totalClasses} classes</span>
+      <span class="badge">{siteMeta.totalSpecialisations} specialisations</span>
+      <span class="badge">{siteMeta.totalAbilities} abilities</span>
+    </div>
+  </section>
+
+  <section class="panel" style="padding: 1.25rem;">
+    <div class="section-header" style="margin-top: 0;">
+      <div>
+        <h2>Data Snapshot</h2>
+        <p>Generated from the package export on {new Date(siteMeta.generatedAtUtc).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC.</p>
+      </div>
+      <div class="badge-row">
+        <span class="badge">Schema {siteMeta.schemaVersion}</span>
+        <span class="badge">{siteMeta.totalBuffs} buffs</span>
+        <span class="badge">{siteMeta.totalDebuffs} debuffs</span>
+        <span class="badge">{siteMeta.warningCount} warnings</span>
+      </div>
+    </div>
+    <p>
+      V1 is intentionally text-first. The source package carries icon path hints, but not the final image assets, so
+      the site focuses on readable mechanics, loadout data, timing, targeting, and linked status effects.
+    </p>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Classes</h2>
+        <p>Start with a class, then move into its specialisations and their accessible ability pools.</p>
+      </div>
+    </div>
+    <div class="grid cards">
+      {
+        classes.map((playerClass) => (
+          <article class="card">
+            <a href={`${base}classes/${playerClass.slug}`}>
+              <div class="card-title">
+                <IconBadge name={playerClass.displayName} />
+                <div>
+                  <h3>{playerClass.displayName}</h3>
+                  <p>{playerClass.description}</p>
+                </div>
+              </div>
+              <div class="badge-row">
+                <span class="chip">{playerClass.specialisations.length} specialisations</span>
+                {playerClass.secondaryResource[0] ? <span class="chip">{playerClass.secondaryResource[0].value}</span> : null}
+              </div>
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  {
+    siteMeta.warningCount > 0 ? (
+      <section class="panel" style="padding: 1.25rem; margin-top: 2rem;">
+        <div class="section-header" style="margin-top: 0;">
+          <div>
+            <h2>Export Warnings</h2>
+            <p>The build tolerates upstream export gaps and still renders the reference site.</p>
+          </div>
+        </div>
+        <ul class="list-reset">
+          {siteMeta.warnings.slice(0, 5).map((warning) => <li>{warning}</li>)}
+        </ul>
+      </section>
+    ) : null
+  }
+</BaseLayout>

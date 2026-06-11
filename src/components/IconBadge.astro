@@ -1,0 +1,10 @@
+---
+interface Props {
+  name: string;
+}
+
+const { name } = Astro.props;
+const initial = (name || "?").trim().charAt(0).toUpperCase();
+---
+
+<div class="icon-badge" aria-hidden="true">{initial}</div>

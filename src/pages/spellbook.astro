@@ -1,0 +1,87 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Breadcrumbs from "../components/Breadcrumbs.astro";
+import IconBadge from "../components/IconBadge.astro";
+import { getAbilities } from "../data/gameData";
+
+const abilities = getAbilities().sort((left, right) => left.displayName.localeCompare(right.displayName));
+const base = import.meta.env.BASE_URL;
+---
+
+<BaseLayout title="Spellbook | Arena Game" description="Browse every exported Arena Game ability.">
+  <Breadcrumbs items={[{ href: base, label: "Home" }, { label: "Spellbook" }]} />
+
+  <section class="hero">
+    <span class="eyebrow">Global Tome</span>
+    <h1>The full spellbook.</h1>
+    <p class="lede">
+      Browse all exported abilities in one place. Filter by class, specialisation, loadout kind, or any part of the
+      ability name.
+    </p>
+    <div class="badge-row">
+      <span class="badge">{abilities.length} abilities</span>
+    </div>
+  </section>
+
+  <section class="search-panel panel">
+    <label for="spellbook-search" class="muted">Search abilities</label>
+    <input id="spellbook-search" type="search" placeholder="Search by name, class, specialisation, or loadout kind" />
+  </section>
+
+  <section>
+    <div class="grid cards" id="spellbook-grid">
+      {
+        abilities.map((ability) => {
+          const searchText = [
+            ability.displayName,
+            ability.description,
+            ability.loadoutKind,
+            ...ability.specialisationLinks.map((entry) => `${entry.classDisplayName} ${entry.displayName}`)
+          ]
+            .join(" ")
+            .toLowerCase();
+
+          return (
+            <article class="card" data-search={searchText}>
+              <a href={`${base}abilities/${ability.routeKey}`}>
+                <div class="card-title">
+                  <IconBadge name={ability.displayName} />
+                  <div>
+                    <h3>{ability.displayName}</h3>
+                    <div class="badge-row">
+                      <span class="chip">Level {ability.level}</span>
+                      <span class="chip">{ability.loadoutKind}</span>
+                    </div>
+                  </div>
+                </div>
+                <p>{ability.description}</p>
+                <div class="badge-row">
+                  {ability.specialisationLinks.slice(0, 3).map((entry) => (
+                    <span class="chip">
+                      {entry.classDisplayName} / {entry.displayName}
+                    </span>
+                  ))}
+                </div>
+              </a>
+            </article>
+          );
+        })
+      }
+    </div>
+  </section>
+
+  <script>
+    const input = document.querySelector("#spellbook-search");
+    const cards = Array.from(document.querySelectorAll("#spellbook-grid [data-search]"));
+
+    input?.addEventListener("input", (event) => {
+      const target = event.currentTarget;
+      const query = String(target && "value" in target ? target.value : "").trim().toLowerCase();
+
+      for (const card of cards) {
+        const haystack = card.getAttribute("data-search") || "";
+        card.toggleAttribute("hidden", query.length > 0 && !haystack.includes(query));
+      }
+    });
+  </script>
+</BaseLayout>

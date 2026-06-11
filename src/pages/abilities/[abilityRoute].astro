@@ -1,0 +1,217 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import IconBadge from "../../components/IconBadge.astro";
+import { getAbilities, getAbilityByRouteKey, getBuffById, getDebuffById } from "../../data/gameData";
+
+export function getStaticPaths() {
+  return getAbilities().map((ability) => ({
+    params: { abilityRoute: ability.routeKey },
+    props: { ability }
+  }));
+}
+
+const { ability } = Astro.props;
+const resolvedAbility = ability ?? getAbilityByRouteKey(Astro.params.abilityRoute ?? "");
+const base = import.meta.env.BASE_URL;
+
+if (!resolvedAbility) {
+  throw new Error(`Missing ability for route '${Astro.params.abilityRoute}'.`);
+}
+
+type ResolvedBuffEntry = {
+  link: (typeof resolvedAbility.linkedBuffs)[number];
+  detail: NonNullable<ReturnType<typeof getBuffById>>;
+};
+
+type ResolvedDebuffEntry = {
+  link: (typeof resolvedAbility.linkedDebuffs)[number];
+  detail: NonNullable<ReturnType<typeof getDebuffById>>;
+};
+
+const resolvedBuffs = resolvedAbility.linkedBuffs
+  .map((entry) => ({ link: entry, detail: getBuffById(entry.id) }))
+  .filter((entry): entry is ResolvedBuffEntry => entry.detail !== undefined);
+
+const resolvedDebuffs = resolvedAbility.linkedDebuffs
+  .map((entry) => ({ link: entry, detail: getDebuffById(entry.id) }))
+  .filter((entry): entry is ResolvedDebuffEntry => entry.detail !== undefined);
+---
+
+<BaseLayout title={`${resolvedAbility.displayName} | Arena Game`} description={resolvedAbility.description}>
+  <Breadcrumbs
+    items={[
+      { href: base, label: "Home" },
+      { href: `${base}spellbook`, label: "Spellbook" },
+      { label: resolvedAbility.displayName }
+    ]}
+  />
+
+  <section class="hero">
+    <span class="eyebrow">Ability</span>
+    <div class="card-title">
+      <IconBadge name={resolvedAbility.displayName} />
+      <div>
+        <h1>{resolvedAbility.displayName}</h1>
+        <div class="badge-row">
+          <span class="badge">Level {resolvedAbility.level}</span>
+          <span class="badge">{resolvedAbility.loadoutKind}</span>
+          <span class="badge">{resolvedAbility.poolMemberships.length} pools</span>
+        </div>
+        <p class="lede">{resolvedAbility.description}</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Available In</h2>
+        <p>Specialisations that can access this ability through at least one pool.</p>
+      </div>
+    </div>
+    <div class="grid cards">
+      {
+        resolvedAbility.specialisationLinks.map((spec) => (
+          <article class="card">
+            <a href={`${base}specialisations/${spec.slug}`}>
+              <h3>{spec.displayName}</h3>
+              <div class="badge-row">
+                <span class="chip">{spec.classDisplayName}</span>
+              </div>
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Combat Data</h2>
+        <p>Core ability details surfaced from the bundle.</p>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <section>
+        <h3>Output</h3>
+        <ul class="list-reset">
+          {resolvedAbility.outputSummary.map((entry) => <li>{entry}</li>)}
+        </ul>
+      </section>
+      <section>
+        <h3>Damage</h3>
+        <ul class="list-reset">
+          {resolvedAbility.damageSummary.map((entry) => <li>{entry}</li>)}
+        </ul>
+      </section>
+      <section>
+        <h3>Timing</h3>
+        <ul class="list-reset">
+          {resolvedAbility.timingSummary.map((entry) => <li>{entry}</li>)}
+        </ul>
+      </section>
+      <section>
+        <h3>Resource</h3>
+        <ul class="list-reset">
+          {resolvedAbility.resourceSummary.map((entry) => <li>{entry}</li>)}
+        </ul>
+      </section>
+      <section>
+        <h3>Targeting</h3>
+        <ul class="list-reset">
+          {resolvedAbility.targetingSummary.map((entry) => <li>{entry}</li>)}
+        </ul>
+      </section>
+      <section>
+        <h3>Ability Pools</h3>
+        <ul class="list-reset">
+          {resolvedAbility.poolMemberships.map((entry) => <li>{entry.displayName}</li>)}
+        </ul>
+      </section>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Linked Buffs</h2>
+        <p>Buff references applied by this ability.</p>
+      </div>
+    </div>
+    {resolvedBuffs.length > 0 ? (
+      <div class="grid cards">
+        {resolvedBuffs.map(({ link, detail }) => (
+          <article class="status-card">
+            <div class="card-title">
+              <IconBadge name={detail.displayName} />
+              <div>
+                <h3>{detail.displayName}</h3>
+                <p>{detail.description}</p>
+              </div>
+            </div>
+            <div class="badge-row">
+              <span class="chip">{link.statusType}</span>
+              <span class="chip">Duration {link.duration}</span>
+              <span class="chip">{link.reapplication}</span>
+              <span class="chip">Base Duration {detail.baseDuration}</span>
+            </div>
+            <p>Value: {link.value} | Tick: {link.tickInterval} | Removable: {link.isRemovable ? "Yes" : "No"}</p>
+            {detail.behaviors.length > 0 ? (
+              <ul class="list-reset">
+                {detail.behaviors.map((behavior) => <li>{behavior}</li>)}
+              </ul>
+            ) : null}
+          </article>
+        ))}
+      </div>
+    ) : (
+      <div class="panel" style="padding: 1rem;">
+        <p>No buffs linked to this ability in the export.</p>
+      </div>
+    )}
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Linked Debuffs</h2>
+        <p>Debuff references applied by this ability.</p>
+      </div>
+    </div>
+    {resolvedDebuffs.length > 0 ? (
+      <div class="grid cards">
+        {resolvedDebuffs.map(({ link, detail }) => (
+          <article class="status-card">
+            <div class="card-title">
+              <IconBadge name={detail.displayName} />
+              <div>
+                <h3>{detail.displayName}</h3>
+                <p>{detail.description}</p>
+              </div>
+            </div>
+            <div class="badge-row">
+              <span class="chip">{link.statusType}</span>
+              <span class="chip">Duration {link.duration}</span>
+              <span class="chip">{link.reapplication}</span>
+              <span class="chip">Base Duration {detail.baseDuration}</span>
+            </div>
+            <p>Value: {link.value} | Tick: {link.tickInterval} | Removable: {link.isRemovable ? "Yes" : "No"}</p>
+            {detail.categoryNames.length > 0 ? <p>Categories: {detail.categoryNames.join(", ")}</p> : null}
+            {detail.breakThreshold ? <p>Break Threshold: {detail.breakThreshold}</p> : null}
+            {detail.behaviors.length > 0 ? (
+              <ul class="list-reset">
+                {detail.behaviors.map((behavior) => <li>{behavior}</li>)}
+              </ul>
+            ) : null}
+          </article>
+        ))}
+      </div>
+    ) : (
+      <div class="panel" style="padding: 1rem;">
+        <p>No debuffs linked to this ability in the export.</p>
+      </div>
+    )}
+  </section>
+</BaseLayout>

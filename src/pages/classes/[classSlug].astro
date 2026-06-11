@@ -1,0 +1,100 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import IconBadge from "../../components/IconBadge.astro";
+import { getClassBySlug, getClasses } from "../../data/gameData";
+
+export function getStaticPaths() {
+  return getClasses().map((playerClass) => ({
+    params: { classSlug: playerClass.slug },
+    props: { playerClass }
+  }));
+}
+
+const { playerClass } = Astro.props;
+const resolvedClass = playerClass ?? getClassBySlug(Astro.params.classSlug ?? "");
+const base = import.meta.env.BASE_URL;
+
+if (!resolvedClass) {
+  throw new Error(`Missing class for slug '${Astro.params.classSlug}'.`);
+}
+---
+
+<BaseLayout title={`${resolvedClass.displayName} | Arena Game`} description={resolvedClass.description}>
+  <Breadcrumbs items={[{ href: base, label: "Home" }, { label: resolvedClass.displayName }]} />
+
+  <section class="hero">
+    <span class="eyebrow">Class</span>
+    <div class="card-title">
+      <IconBadge name={resolvedClass.displayName} />
+      <div>
+        <h1>{resolvedClass.displayName}</h1>
+        <p class="lede">{resolvedClass.description}</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Specialisations</h2>
+        <p>Each specialisation page groups the accessible pools and their linked abilities.</p>
+      </div>
+    </div>
+    <div class="grid cards">
+      {
+        resolvedClass.specialisations.map((spec) => (
+          <article class="card">
+            <a href={`${base}specialisations/${spec.slug}`}>
+              <h3>{spec.displayName}</h3>
+              <div class="badge-row">
+                <span class="chip">{spec.role}</span>
+              </div>
+              <p>{spec.description}</p>
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Class Stats</h2>
+        <p>Snapshot of the exported baseline class values.</p>
+      </div>
+    </div>
+    <dl class="stat-grid">
+      {
+        resolvedClass.stats.map((item) => (
+          <div>
+            <dt>{item.label}</dt>
+            <dd>{item.value}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </section>
+
+  {
+    resolvedClass.secondaryResource.length > 0 ? (
+      <section>
+        <div class="section-header">
+          <div>
+            <h2>Secondary Resource</h2>
+            <p>Resource rules exported with the class definition.</p>
+          </div>
+        </div>
+        <dl class="stat-grid">
+          {resolvedClass.secondaryResource.map((item) => (
+            <div>
+              <dt>{item.label}</dt>
+              <dd>{item.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    ) : null
+  }
+</BaseLayout>
