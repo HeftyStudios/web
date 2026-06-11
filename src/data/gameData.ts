@@ -1,4 +1,7 @@
 import rawGameData from "@hefty-studios/arena-game-data";
+import fs from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -154,8 +157,19 @@ type RawGameData = {
 
 export type SiteIcon = {
   available: boolean;
+  src: string | null;
   pathHint: string | null;
 };
+
+const require = createRequire(import.meta.url);
+const arenaDataPackageEntryPath = require.resolve("@hefty-studios/arena-game-data");
+const arenaDataPackageRoot = path.dirname(arenaDataPackageEntryPath);
+const siteBase =
+  typeof import.meta.env.BASE_URL === "string" && import.meta.env.BASE_URL.length > 0
+    ? import.meta.env.BASE_URL.endsWith("/")
+      ? import.meta.env.BASE_URL
+      : `${import.meta.env.BASE_URL}/`
+    : "/";
 
 export type SiteStatusLink = {
   routeKey: string;
@@ -240,7 +254,7 @@ export type SiteAbilityPool = {
   tag: string;
   totalPoints: number;
   unlockRequirements: string[];
-  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind">[];
+  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind" | "icon">[];
 };
 
 export type SitePool = {
@@ -250,11 +264,12 @@ export type SitePool = {
   displayName: string;
   description: string;
   tag: string;
-  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind" | "description">[];
+  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind" | "description" | "icon">[];
   specialisations: {
     id: string;
     slug: string;
     displayName: string;
+    icon: SiteIcon;
     classSlug: string;
     classDisplayName: string;
     totalPoints: number;
@@ -314,11 +329,18 @@ function assertGameData(value: unknown): asserts value is RawGameData {
 
 function toIcon(value: unknown): SiteIcon {
   if (!isObject(value)) {
-    return { available: false, pathHint: null };
+    return { available: false, src: null, pathHint: null };
   }
 
+  const iconId = asString(value.id);
+  const packagePath = asString(value.packagePath);
+  const relativePackagePath = packagePath ? packagePath.replace(/^\.\//, "") : iconId ? `icons/by-guid/${iconId}.webp` : "";
+  const absolutePackagePath = relativePackagePath ? path.join(arenaDataPackageRoot, relativePackagePath) : "";
+  const available = absolutePackagePath ? fs.existsSync(absolutePackagePath) : false;
+
   return {
-    available: false,
+    available,
+    src: available && iconId ? `${siteBase}arena-icons/by-guid/${iconId}.webp` : null,
     pathHint: asString(value.pathHint) || null
   };
 }
@@ -657,7 +679,8 @@ const siteSpecialisations = gameData.specialisations.map<SiteSpecialisation>((sp
               slug: ability.slug,
               displayName: ability.displayName,
               level: ability.level,
-              loadoutKind: ability.loadoutKind
+              loadoutKind: ability.loadoutKind,
+              icon: ability.icon
             }))
         };
       })
@@ -686,7 +709,8 @@ const sitePools = gameData.abilityPools
         displayName: ability.displayName,
         description: ability.description,
         level: ability.level,
-        loadoutKind: ability.loadoutKind
+        loadoutKind: ability.loadoutKind,
+        icon: ability.icon
       })),
     specialisations: gameData.specialisations
       .flatMap((spec) => {
@@ -701,6 +725,7 @@ const sitePools = gameData.abilityPools
             id: spec.id,
             slug: spec.slug,
             displayName: spec.displayName,
+            icon: toIcon(spec.icon),
             classSlug: linkedClass?.slug ?? "",
             classDisplayName: linkedClass?.displayName ?? "Unknown",
             totalPoints: access.totalPoints,

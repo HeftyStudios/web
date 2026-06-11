@@ -1,10 +1,19 @@
 ---
+import type { SiteIcon } from "../data/gameData";
+
 interface Props {
   name: string;
+  icon?: SiteIcon;
 }
 
-const { name } = Astro.props;
+const { name, icon } = Astro.props;
 const initial = (name || "?").trim().charAt(0).toUpperCase();
 ---
 
-<div class="icon-badge" aria-hidden="true">{initial}</div>
+{
+  icon?.available && icon?.src ? (
+    <img class="icon-badge" src={icon.src} alt="" loading="lazy" decoding="async" aria-hidden="true" />
+  ) : (
+    <div class="icon-badge" aria-hidden="true">{initial}</div>
+  )
+}

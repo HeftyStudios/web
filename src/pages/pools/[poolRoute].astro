@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import IconBadge from "../../components/IconBadge.astro";
 import { getPoolByRouteKey, getPools } from "../../data/gameData";
 
 export function getStaticPaths() {
@@ -36,27 +37,26 @@ if (!resolvedPool) {
   <section>
     <div class="section-header">
       <div>
-        <h2>Accessible By</h2>
-        <p>Specialisations that can spend points in this pool.</p>
+        <h2>Abilities In This Pool</h2>
+        <p>Each ability page still contains the detailed combat and status-effect data.</p>
       </div>
     </div>
     <div class="grid cards">
       {
-        resolvedPool.specialisations.map((specialisation) => (
+        resolvedPool.abilities.map((ability) => (
           <article class="card">
-            <a href={`${base}specialisations/${specialisation.slug}/`}>
-              <h3>{specialisation.displayName}</h3>
-              <div class="badge-row">
-                <span class="chip">{specialisation.classDisplayName}</span>
-                <span class="chip">{specialisation.totalPoints} points</span>
-              </div>
-              {specialisation.unlockRequirements.length > 0 ? (
-                <div class="badge-row">
-                  {specialisation.unlockRequirements.map((entry) => (
-                    <span class="chip">{entry}</span>
-                  ))}
+            <a href={`${base}abilities/${ability.routeKey}/`}>
+              <div class="card-title">
+                <IconBadge name={ability.displayName} icon={ability.icon} />
+                <div>
+                  <h3>{ability.displayName}</h3>
+                  <div class="badge-row">
+                    <span class="chip">Level {ability.level}</span>
+                    <span class="chip">{ability.loadoutKind}</span>
+                  </div>
                 </div>
-              ) : null}
+              </div>
+              <p>{ability.description}</p>
             </a>
           </article>
         ))
@@ -67,21 +67,32 @@ if (!resolvedPool) {
   <section>
     <div class="section-header">
       <div>
-        <h2>Abilities In This Pool</h2>
-        <p>Each ability page still contains the detailed combat and status-effect data.</p>
+        <h2>Accessible By</h2>
+        <p>Specialisations that can spend points in this pool.</p>
       </div>
     </div>
     <div class="grid cards">
       {
-        resolvedPool.abilities.map((ability) => (
+        resolvedPool.specialisations.map((specialisation) => (
           <article class="card">
-            <a href={`${base}abilities/${ability.routeKey}/`}>
-              <h3>{ability.displayName}</h3>
-              <div class="badge-row">
-                <span class="chip">Level {ability.level}</span>
-                <span class="chip">{ability.loadoutKind}</span>
+            <a href={`${base}specialisations/${specialisation.slug}/`}>
+              <div class="card-title">
+                <IconBadge name={specialisation.displayName} icon={specialisation.icon} />
+                <div>
+                  <h3>{specialisation.displayName}</h3>
+                  <div class="badge-row">
+                    <span class="chip">{specialisation.classDisplayName}</span>
+                    <span class="chip">{specialisation.totalPoints} points</span>
+                  </div>
+                </div>
               </div>
-              <p>{ability.description}</p>
+              {specialisation.unlockRequirements.length > 0 ? (
+                <div class="badge-row">
+                  {specialisation.unlockRequirements.map((entry) => (
+                    <span class="chip">{entry}</span>
+                  ))}
+                </div>
+              ) : null}
             </a>
           </article>
         ))

@@ -56,7 +56,7 @@ const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL :
           <article class="card">
             <a href={`${base}classes/${playerClass.slug}/`}>
               <div class="card-title">
-                <IconBadge name={playerClass.displayName} />
+                <IconBadge name={playerClass.displayName} icon={playerClass.icon} />
                 <div>
                   <h3>{playerClass.displayName}</h3>
                   <p>{playerClass.description}</p>

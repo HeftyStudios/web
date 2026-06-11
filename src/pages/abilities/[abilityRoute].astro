@@ -49,7 +49,7 @@ const resolvedDebuffs = resolvedAbility.linkedDebuffs
   <section class="hero">
     <span class="eyebrow">Ability</span>
     <div class="card-title">
-      <IconBadge name={resolvedAbility.displayName} />
+      <IconBadge name={resolvedAbility.displayName} icon={resolvedAbility.icon} />
       <div>
         <h1>{resolvedAbility.displayName}</h1>
         <div class="badge-row">
@@ -144,7 +144,7 @@ const resolvedDebuffs = resolvedAbility.linkedDebuffs
         {resolvedBuffs.map(({ link, detail }) => (
           <article class="status-card">
             <div class="card-title">
-              <IconBadge name={detail.displayName} />
+              <IconBadge name={detail.displayName} icon={detail.icon} />
               <div>
                 <h3>{detail.displayName}</h3>
                 <p>{detail.description}</p>
@@ -184,7 +184,7 @@ const resolvedDebuffs = resolvedAbility.linkedDebuffs
         {resolvedDebuffs.map(({ link, detail }) => (
           <article class="status-card">
             <div class="card-title">
-              <IconBadge name={detail.displayName} />
+              <IconBadge name={detail.displayName} icon={detail.icon} />
               <div>
                 <h3>{detail.displayName}</h3>
                 <p>{detail.description}</p>

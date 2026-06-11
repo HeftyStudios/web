@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 
 # Astro
 .astro/
+
+# Synced arena data icons
+public/arena-icons/

@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
-    "build": "ASTRO_TELEMETRY_DISABLED=1 astro check && ASTRO_TELEMETRY_DISABLED=1 astro build",
-    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
+    "prepare:icons": "node scripts/sync-arena-icons.mjs",
+    "dev": "npm run prepare:icons && ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "build": "npm run prepare:icons && ASTRO_TELEMETRY_DISABLED=1 astro check && ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "preview": "npm run prepare:icons && ASTRO_TELEMETRY_DISABLED=1 astro preview",
     "check": "ASTRO_TELEMETRY_DISABLED=1 astro check"
   },
   "dependencies": {
-    "@hefty-studios/arena-game-data": "^1.0.1",
+    "@hefty-studios/arena-game-data": "^1.0.2",
     "astro": "^5.10.0"
   },
   "devDependencies": {
