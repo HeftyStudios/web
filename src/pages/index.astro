@@ -4,7 +4,7 @@ import IconBadge from "../components/IconBadge.astro";
 import { getClasses, siteMeta } from "../data/gameData";
 
 const classes = getClasses();
-const base = import.meta.env.BASE_URL;
+const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 ---
 
 <BaseLayout title="Arena Game Class Tome" description="Browse Arena Game classes, specialisations, and abilities.">
@@ -17,7 +17,7 @@ const base = import.meta.env.BASE_URL;
       detailed ability, buff, and debuff data without leaving the web.
     </p>
     <div class="cta-row">
-      <a class="button" href={`${base}spellbook`}>Open the Spellbook</a>
+      <a class="button" href={`${base}spellbook/`}>Open the Spellbook</a>
       <span class="badge">{siteMeta.totalClasses} classes</span>
       <span class="badge">{siteMeta.totalSpecialisations} specialisations</span>
       <span class="badge">{siteMeta.totalAbilities} abilities</span>
@@ -54,7 +54,7 @@ const base = import.meta.env.BASE_URL;
       {
         classes.map((playerClass) => (
           <article class="card">
-            <a href={`${base}classes/${playerClass.slug}`}>
+            <a href={`${base}classes/${playerClass.slug}/`}>
               <div class="card-title">
                 <IconBadge name={playerClass.displayName} />
                 <div>

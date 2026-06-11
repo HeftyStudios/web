@@ -13,8 +13,7 @@ export function getStaticPaths() {
 
 const { ability } = Astro.props;
 const resolvedAbility = ability ?? getAbilityByRouteKey(Astro.params.abilityRoute ?? "");
-const base = import.meta.env.BASE_URL;
-
+const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 if (!resolvedAbility) {
   throw new Error(`Missing ability for route '${Astro.params.abilityRoute}'.`);
 }
@@ -42,7 +41,7 @@ const resolvedDebuffs = resolvedAbility.linkedDebuffs
   <Breadcrumbs
     items={[
       { href: base, label: "Home" },
-      { href: `${base}spellbook`, label: "Spellbook" },
+      { href: `${base}spellbook/`, label: "Spellbook" },
       { label: resolvedAbility.displayName }
     ]}
   />
@@ -74,7 +73,7 @@ const resolvedDebuffs = resolvedAbility.linkedDebuffs
       {
         resolvedAbility.specialisationLinks.map((spec) => (
           <article class="card">
-            <a href={`${base}specialisations/${spec.slug}`}>
+            <a href={`${base}specialisations/${spec.slug}/`}>
               <h3>{spec.displayName}</h3>
               <div class="badge-row">
                 <span class="chip">{spec.classDisplayName}</span>

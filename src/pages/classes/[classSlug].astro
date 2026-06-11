@@ -13,8 +13,7 @@ export function getStaticPaths() {
 
 const { playerClass } = Astro.props;
 const resolvedClass = playerClass ?? getClassBySlug(Astro.params.classSlug ?? "");
-const base = import.meta.env.BASE_URL;
-
+const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 if (!resolvedClass) {
   throw new Error(`Missing class for slug '${Astro.params.classSlug}'.`);
 }
@@ -45,7 +44,7 @@ if (!resolvedClass) {
       {
         resolvedClass.specialisations.map((spec) => (
           <article class="card">
-            <a href={`${base}specialisations/${spec.slug}`}>
+            <a href={`${base}specialisations/${spec.slug}/`}>
               <h3>{spec.displayName}</h3>
               <div class="badge-row">
                 <span class="chip">{spec.role}</span>

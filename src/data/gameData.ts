@@ -45,6 +45,10 @@ type RawAbilityPool = {
   displayName: string;
   slug: string;
   description: string;
+  tag?: {
+    raw: number;
+    name: string;
+  };
   entries: {
     kind: string;
     asset: AssetRef;
@@ -214,6 +218,7 @@ export type SiteAbility = {
   linkedDebuffs: SiteStatusLink[];
   poolMemberships: {
     id: string;
+    routeKey: string;
     slug: string;
     displayName: string;
   }[];
@@ -228,12 +233,33 @@ export type SiteAbility = {
 
 export type SiteAbilityPool = {
   id: string;
+  routeKey: string;
   slug: string;
   displayName: string;
   description: string;
+  tag: string;
   totalPoints: number;
   unlockRequirements: string[];
   abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind">[];
+};
+
+export type SitePool = {
+  id: string;
+  routeKey: string;
+  slug: string;
+  displayName: string;
+  description: string;
+  tag: string;
+  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind" | "description">[];
+  specialisations: {
+    id: string;
+    slug: string;
+    displayName: string;
+    classSlug: string;
+    classDisplayName: string;
+    totalPoints: number;
+    unlockRequirements: string[];
+  }[];
 };
 
 export type SiteSpecialisation = {
@@ -402,24 +428,26 @@ function summarizeUnlockRequirements(value: UnknownRecord): string[] {
 }
 
 assertGameData(rawGameData);
+const gameData: RawGameData = rawGameData;
 
-const poolById = new Map(rawGameData.abilityPools.map((item) => [item.id, item]));
+const poolById = new Map(gameData.abilityPools.map((item) => [item.id, item]));
 
-const classRouteKeys = routeKeysBySlug(rawGameData.classes);
-const specRouteKeys = routeKeysBySlug(rawGameData.specialisations);
-const abilityRouteKeys = routeKeysBySlug(rawGameData.abilities);
-const buffRouteKeys = routeKeysBySlug(rawGameData.buffs);
-const debuffRouteKeys = routeKeysBySlug(rawGameData.debuffs);
+const classRouteKeys = routeKeysBySlug(gameData.classes);
+const specRouteKeys = routeKeysBySlug(gameData.specialisations);
+const poolRouteKeys = routeKeysBySlug(gameData.abilityPools);
+const abilityRouteKeys = routeKeysBySlug(gameData.abilities);
+const buffRouteKeys = routeKeysBySlug(gameData.buffs);
+const debuffRouteKeys = routeKeysBySlug(gameData.debuffs);
 
 const specClassLinks = new Map<string, RawClass>();
-for (const rawClass of rawGameData.classes) {
+for (const rawClass of gameData.classes) {
   for (const specRef of rawClass.specialisations) {
     specClassLinks.set(specRef.id, rawClass);
   }
 }
 
 const abilityPoolMembership = new Map<string, RawAbilityPool[]>();
-for (const pool of rawGameData.abilityPools) {
+for (const pool of gameData.abilityPools) {
   for (const entry of pool.entries) {
     if (entry.kind !== "ability") {
       continue;
@@ -432,7 +460,7 @@ for (const pool of rawGameData.abilityPools) {
 }
 
 const abilitySpecMembership = new Map<string, RawSpecialisation[]>();
-for (const spec of rawGameData.specialisations) {
+for (const spec of gameData.specialisations) {
   const seen = new Set<string>();
   for (const access of spec.abilityPoolAccesses) {
     const pool = poolById.get(access.pool.id);
@@ -453,7 +481,7 @@ for (const spec of rawGameData.specialisations) {
   }
 }
 
-const siteBuffs = rawGameData.buffs.map<SiteBuff>((buff) => ({
+const siteBuffs = gameData.buffs.map<SiteBuff>((buff) => ({
   id: buff.id,
   routeKey: buffRouteKeys.get(buff.id) ?? buff.slug,
   slug: buff.slug,
@@ -467,7 +495,7 @@ const siteBuffs = rawGameData.buffs.map<SiteBuff>((buff) => ({
   behaviors: buff.behaviors.map((behavior) => summarizeBehavior(behavior))
 }));
 
-const siteDebuffs = rawGameData.debuffs.map<SiteDebuff>((debuff) => ({
+const siteDebuffs = gameData.debuffs.map<SiteDebuff>((debuff) => ({
   id: debuff.id,
   routeKey: debuffRouteKeys.get(debuff.id) ?? debuff.slug,
   slug: debuff.slug,
@@ -486,7 +514,7 @@ const siteDebuffs = rawGameData.debuffs.map<SiteDebuff>((debuff) => ({
 const siteBuffById = new Map(siteBuffs.map((item) => [item.id, item]));
 const siteDebuffById = new Map(siteDebuffs.map((item) => [item.id, item]));
 
-const siteAbilities = rawGameData.abilities.map<SiteAbility>((ability) => ({
+const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
   id: ability.id,
   routeKey: abilityRouteKeys.get(ability.id) ?? ability.slug,
   slug: ability.slug,
@@ -572,6 +600,7 @@ const siteAbilities = rawGameData.abilities.map<SiteAbility>((ability) => ({
     .filter((item): item is SiteStatusLink => item !== null),
   poolMemberships: (abilityPoolMembership.get(ability.id) ?? []).map((pool) => ({
     id: pool.id,
+    routeKey: poolRouteKeys.get(pool.id) ?? pool.slug,
     slug: pool.slug,
     displayName: pool.displayName
   })),
@@ -589,7 +618,7 @@ const siteAbilities = rawGameData.abilities.map<SiteAbility>((ability) => ({
 
 const siteAbilityById = new Map(siteAbilities.map((item) => [item.id, item]));
 
-const siteSpecialisations = rawGameData.specialisations.map<SiteSpecialisation>((spec) => {
+const siteSpecialisations = gameData.specialisations.map<SiteSpecialisation>((spec) => {
   const linkedClass = specClassLinks.get(spec.id);
 
   return {
@@ -611,9 +640,11 @@ const siteSpecialisations = rawGameData.specialisations.map<SiteSpecialisation>(
 
         return {
           id: pool.id,
+          routeKey: poolRouteKeys.get(pool.id) ?? pool.slug,
           slug: pool.slug,
           displayName: pool.displayName,
           description: pool.description,
+          tag: pool.tag?.name ?? "Shared",
           totalPoints: access.totalPoints,
           unlockRequirements: summarizeUnlockRequirements(access.unlockRequirements),
           abilities: pool.entries
@@ -636,7 +667,51 @@ const siteSpecialisations = rawGameData.specialisations.map<SiteSpecialisation>(
 
 const siteSpecById = new Map(siteSpecialisations.map((item) => [item.id, item]));
 
-const siteClasses = rawGameData.classes.map<SiteClass>((item) => ({
+const sitePools = gameData.abilityPools
+  .map<SitePool>((pool) => ({
+    id: pool.id,
+    routeKey: poolRouteKeys.get(pool.id) ?? pool.slug,
+    slug: pool.slug,
+    displayName: pool.displayName,
+    description: pool.description,
+    tag: pool.tag?.name ?? "Shared",
+    abilities: pool.entries
+      .filter((entry) => entry.kind === "ability")
+      .map((entry) => siteAbilityById.get(entry.asset.id))
+      .filter((item): item is SiteAbility => item !== undefined)
+      .map((ability) => ({
+        id: ability.id,
+        routeKey: ability.routeKey,
+        slug: ability.slug,
+        displayName: ability.displayName,
+        description: ability.description,
+        level: ability.level,
+        loadoutKind: ability.loadoutKind
+      })),
+    specialisations: gameData.specialisations
+      .flatMap((spec) => {
+        const access = spec.abilityPoolAccesses.find((item) => item.pool.id === pool.id);
+        if (!access) {
+          return [];
+        }
+
+        const linkedClass = specClassLinks.get(spec.id);
+        return [
+          {
+            id: spec.id,
+            slug: spec.slug,
+            displayName: spec.displayName,
+            classSlug: linkedClass?.slug ?? "",
+            classDisplayName: linkedClass?.displayName ?? "Unknown",
+            totalPoints: access.totalPoints,
+            unlockRequirements: summarizeUnlockRequirements(access.unlockRequirements)
+          }
+        ];
+      })
+  }))
+  .filter((pool) => pool.abilities.length > 0);
+
+const siteClasses = gameData.classes.map<SiteClass>((item) => ({
   id: item.id,
   slug: item.slug,
   displayName: item.displayName,
@@ -668,16 +743,18 @@ const siteClasses = rawGameData.classes.map<SiteClass>((item) => ({
 const siteClassBySlug = new Map(siteClasses.map((item) => [item.slug, item]));
 const siteSpecBySlug = new Map(siteSpecialisations.map((item) => [item.slug, item]));
 const siteAbilityByRouteKey = new Map(siteAbilities.map((item) => [item.routeKey, item]));
+const sitePoolByRouteKey = new Map(sitePools.map((item) => [item.routeKey, item]));
 
 export const siteMeta = {
-  schemaVersion: rawGameData.schemaVersion,
-  generatedAtUtc: rawGameData.generatedAtUtc,
-  sourceRevision: rawGameData.sourceRevision,
-  warningCount: rawGameData.warnings.length,
-  warnings: rawGameData.warnings,
-  metadata: rawGameData.metadata,
+  schemaVersion: gameData.schemaVersion,
+  generatedAtUtc: gameData.generatedAtUtc,
+  sourceRevision: gameData.sourceRevision,
+  warningCount: gameData.warnings.length,
+  warnings: gameData.warnings,
+  metadata: gameData.metadata,
   totalClasses: siteClasses.length,
   totalSpecialisations: siteSpecialisations.length,
+  totalPools: sitePools.length,
   totalAbilities: siteAbilities.length,
   totalBuffs: siteBuffs.length,
   totalDebuffs: siteDebuffs.length
@@ -701,6 +778,14 @@ export function getSpecialisationBySlug(slug: string): SiteSpecialisation | unde
 
 export function getAbilities(): SiteAbility[] {
   return siteAbilities;
+}
+
+export function getPools(): SitePool[] {
+  return sitePools;
+}
+
+export function getPoolByRouteKey(routeKey: string): SitePool | undefined {
+  return sitePoolByRouteKey.get(routeKey);
 }
 
 export function getAbilityByRouteKey(routeKey: string): SiteAbility | undefined {

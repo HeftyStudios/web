@@ -2,64 +2,77 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Breadcrumbs from "../components/Breadcrumbs.astro";
 import IconBadge from "../components/IconBadge.astro";
-import { getAbilities } from "../data/gameData";
+import { getPools } from "../data/gameData";
 
-const abilities = getAbilities().sort((left, right) => left.displayName.localeCompare(right.displayName));
-const base = import.meta.env.BASE_URL;
+const pools = getPools().sort((left, right) => left.displayName.localeCompare(right.displayName));
+const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 ---
 
-<BaseLayout title="Spellbook | Arena Game" description="Browse every exported Arena Game ability.">
+<BaseLayout title="Spellbook | Arena Game" description="Browse Arena Game ability pools and the abilities inside them.">
   <Breadcrumbs items={[{ href: base, label: "Home" }, { label: "Spellbook" }]} />
 
   <section class="hero">
     <span class="eyebrow">Global Tome</span>
-    <h1>The full spellbook.</h1>
+    <h1>The full spellbook, grouped by pool.</h1>
     <p class="lede">
-      Browse all exported abilities in one place. Filter by class, specialisation, loadout kind, or any part of the
-      ability name.
+      Shared pools are shown by default. Turn on the toggle to include class and specialisation pools in the tome.
     </p>
     <div class="badge-row">
-      <span class="badge">{abilities.length} abilities</span>
+      <span class="badge">{pools.length} pools</span>
+      <span class="badge">14 shared by default</span>
     </div>
   </section>
 
   <section class="search-panel panel">
-    <label for="spellbook-search" class="muted">Search abilities</label>
-    <input id="spellbook-search" type="search" placeholder="Search by name, class, specialisation, or loadout kind" />
+    <label for="spellbook-search" class="muted">Search pools</label>
+    <input id="spellbook-search" type="search" placeholder="Search by pool name, class, specialisation, or ability name" />
+    <div class="badge-row" style="margin-top: 0.9rem;">
+      <label class="chip" for="show-all-pools">
+        <input id="show-all-pools" type="checkbox" style="margin: 0;" />
+        Show class and specialisation pools
+      </label>
+    </div>
   </section>
 
   <section>
     <div class="grid cards" id="spellbook-grid">
       {
-        abilities.map((ability) => {
+        pools.map((pool) => {
           const searchText = [
-            ability.displayName,
-            ability.description,
-            ability.loadoutKind,
-            ...ability.specialisationLinks.map((entry) => `${entry.classDisplayName} ${entry.displayName}`)
+            pool.displayName,
+            pool.description,
+            pool.tag,
+            ...pool.abilities.map((ability) => `${ability.displayName} ${ability.description} ${ability.loadoutKind}`),
+            ...pool.specialisations.map((entry) => `${entry.classDisplayName} ${entry.displayName}`)
           ]
             .join(" ")
             .toLowerCase();
 
           return (
-            <article class="card" data-search={searchText}>
-              <a href={`${base}abilities/${ability.routeKey}`}>
+            <article class="card" data-search={searchText} data-tag={pool.tag}>
+              <a href={`${base}pools/${pool.routeKey}/`}>
                 <div class="card-title">
-                  <IconBadge name={ability.displayName} />
+                  <IconBadge name={pool.displayName} />
                   <div>
-                    <h3>{ability.displayName}</h3>
+                    <h3>{pool.displayName}</h3>
                     <div class="badge-row">
-                      <span class="chip">Level {ability.level}</span>
-                      <span class="chip">{ability.loadoutKind}</span>
+                      <span class="chip">{pool.abilities.length} abilities</span>
+                      <span class="chip">{pool.specialisations.length} specialisations</span>
+                      <span class="chip">{pool.tag}</span>
                     </div>
                   </div>
                 </div>
-                <p>{ability.description}</p>
+                <p>{pool.description || "Open this pool to browse its grouped abilities."}</p>
                 <div class="badge-row">
-                  {ability.specialisationLinks.slice(0, 3).map((entry) => (
+                  {pool.specialisations.slice(0, 3).map((entry) => (
                     <span class="chip">
                       {entry.classDisplayName} / {entry.displayName}
                     </span>
+                  ))}
+                </div>
+                <div class="badge-row">
+                  {pool.abilities.slice(0, 3).map((ability) => (
+                    <span class="chip">{ability.displayName}</span>
                   ))}
                 </div>
               </a>
@@ -72,16 +85,24 @@ const base = import.meta.env.BASE_URL;
 
   <script>
     const input = document.querySelector("#spellbook-search");
+    const toggle = document.querySelector("#show-all-pools");
     const cards = Array.from(document.querySelectorAll("#spellbook-grid [data-search]"));
 
-    input?.addEventListener("input", (event) => {
-      const target = event.currentTarget;
-      const query = String(target && "value" in target ? target.value : "").trim().toLowerCase();
+    const applyFilters = () => {
+      const query = String(input && "value" in input ? input.value : "").trim().toLowerCase();
+      const showAllPools = Boolean(toggle && "checked" in toggle && toggle.checked);
 
       for (const card of cards) {
         const haystack = card.getAttribute("data-search") || "";
-        card.toggleAttribute("hidden", query.length > 0 && !haystack.includes(query));
+        const tag = card.getAttribute("data-tag") || "";
+        const matchesText = query.length === 0 || haystack.includes(query);
+        const matchesTag = showAllPools || tag === "Shared";
+        card.toggleAttribute("hidden", !(matchesText && matchesTag));
       }
-    });
+    };
+
+    input?.addEventListener("input", applyFilters);
+    toggle?.addEventListener("change", applyFilters);
+    applyFilters();
   </script>
 </BaseLayout>

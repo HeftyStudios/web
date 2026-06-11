@@ -10,7 +10,7 @@
     "check": "ASTRO_TELEMETRY_DISABLED=1 astro check"
   },
   "dependencies": {
-    "@hefty-studios/arena-game-data": "^1.0.0",
+    "@hefty-studios/arena-game-data": "^1.0.1",
     "astro": "^5.10.0"
   },
   "devDependencies": {

@@ -1,0 +1,91 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import { getPoolByRouteKey, getPools } from "../../data/gameData";
+
+export function getStaticPaths() {
+  return getPools().map((pool) => ({
+    params: { poolRoute: pool.routeKey },
+    props: { pool }
+  }));
+}
+
+const { pool } = Astro.props;
+const resolvedPool = pool ?? getPoolByRouteKey(Astro.params.poolRoute ?? "");
+const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+
+if (!resolvedPool) {
+  throw new Error(`Missing pool for route '${Astro.params.poolRoute}'.`);
+}
+---
+
+<BaseLayout title={`${resolvedPool.displayName} | Arena Game`} description={resolvedPool.description || `${resolvedPool.displayName} ability pool.`}>
+  <Breadcrumbs items={[{ href: base, label: "Home" }, { href: `${base}spellbook/`, label: "Spellbook" }, { label: resolvedPool.displayName }]} />
+
+  <section class="hero">
+    <span class="eyebrow">Ability Pool</span>
+    <h1>{resolvedPool.displayName}</h1>
+    <p class="lede">{resolvedPool.description || "A grouped pool of abilities exported from the Arena Game data bundle."}</p>
+    <div class="badge-row">
+      <span class="badge">{resolvedPool.abilities.length} abilities</span>
+      <span class="badge">{resolvedPool.specialisations.length} specialisations</span>
+      <span class="badge">{resolvedPool.tag}</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Accessible By</h2>
+        <p>Specialisations that can spend points in this pool.</p>
+      </div>
+    </div>
+    <div class="grid cards">
+      {
+        resolvedPool.specialisations.map((specialisation) => (
+          <article class="card">
+            <a href={`${base}specialisations/${specialisation.slug}/`}>
+              <h3>{specialisation.displayName}</h3>
+              <div class="badge-row">
+                <span class="chip">{specialisation.classDisplayName}</span>
+                <span class="chip">{specialisation.totalPoints} points</span>
+              </div>
+              {specialisation.unlockRequirements.length > 0 ? (
+                <div class="badge-row">
+                  {specialisation.unlockRequirements.map((entry) => (
+                    <span class="chip">{entry}</span>
+                  ))}
+                </div>
+              ) : null}
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Abilities In This Pool</h2>
+        <p>Each ability page still contains the detailed combat and status-effect data.</p>
+      </div>
+    </div>
+    <div class="grid cards">
+      {
+        resolvedPool.abilities.map((ability) => (
+          <article class="card">
+            <a href={`${base}abilities/${ability.routeKey}/`}>
+              <h3>{ability.displayName}</h3>
+              <div class="badge-row">
+                <span class="chip">Level {ability.level}</span>
+                <span class="chip">{ability.loadoutKind}</span>
+              </div>
+              <p>{ability.description}</p>
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+</BaseLayout>

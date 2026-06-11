@@ -13,8 +13,7 @@ export function getStaticPaths() {
 
 const { specialisation } = Astro.props;
 const resolvedSpec = specialisation ?? getSpecialisationBySlug(Astro.params.specSlug ?? "");
-const base = import.meta.env.BASE_URL;
-
+const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 if (!resolvedSpec) {
   throw new Error(`Missing specialisation for slug '${Astro.params.specSlug}'.`);
 }
@@ -24,7 +23,7 @@ if (!resolvedSpec) {
   <Breadcrumbs
     items={[
       { href: base, label: "Home" },
-      { href: `${base}classes/${resolvedSpec.classSlug}`, label: resolvedSpec.classDisplayName },
+      { href: `${base}classes/${resolvedSpec.classSlug}/`, label: resolvedSpec.classDisplayName },
       { label: resolvedSpec.displayName }
     ]}
   />
@@ -58,7 +57,7 @@ if (!resolvedSpec) {
           <article class="pool-card">
             <div class="section-header" style="margin-top: 0;">
               <div>
-                <h3>{pool.displayName}</h3>
+                <h3><a href={`${base}pools/${pool.routeKey}/`}>{pool.displayName}</a></h3>
                 <p>{pool.description || "No description provided in the export."}</p>
               </div>
               <div class="badge-row">
@@ -76,7 +75,7 @@ if (!resolvedSpec) {
             <div class="grid cards">
               {pool.abilities.map((ability) => (
                 <article class="ability-card">
-                  <a href={`${base}abilities/${ability.routeKey}`}>
+                  <a href={`${base}abilities/${ability.routeKey}/`}>
                     <h3>{ability.displayName}</h3>
                     <div class="badge-row">
                       <span class="chip">Level {ability.level}</span>
