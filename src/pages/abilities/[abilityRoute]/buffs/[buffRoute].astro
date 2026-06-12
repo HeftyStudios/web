@@ -41,7 +41,7 @@ if (!link || !detail) {
   />
 
   <section class="hero">
-    <span class="eyebrow">Linked Buff</span>
+    <span class="eyebrow">Buff</span>
     <div class="card-title">
       <IconBadge name={detail.displayName} icon={detail.icon} />
       <div>
@@ -59,18 +59,6 @@ if (!link || !detail) {
   <section>
     <div class="section-header">
       <div>
-        <h2>Applied By</h2>
-        <p>This status is shown in the context of the ability that applies it.</p>
-      </div>
-    </div>
-    <div class="panel" style="padding: 1rem;">
-      <p><a href={`${base}abilities/${resolvedAbility.routeKey}/`}>{resolvedAbility.displayName}</a></p>
-    </div>
-  </section>
-
-  <section>
-    <div class="section-header">
-      <div>
         <h2>Status Details</h2>
         <p>Resolved from the linked buff definition and the ability application values.</p>
       </div>
@@ -79,31 +67,33 @@ if (!link || !detail) {
       <section>
         <h3>Application</h3>
         <ul class="list-reset">
-          <li>Status Type: {link.statusType}</li>
           <li>Duration: {link.duration}</li>
-          <li>Value: {link.value}</li>
-          <li>Tick Interval: {link.tickInterval}</li>
           <li>Reapplication: {link.reapplication}</li>
+          <li>Status Type: {link.statusType}</li>
           <li>Removable: {link.isRemovable ? "Yes" : "No"}</li>
         </ul>
       </section>
-      <section>
-        <h3>Definition</h3>
-        <ul class="list-reset">
-          <li>Base Duration: {detail.baseDuration}</li>
-          <li>Status Type: {detail.statusType}</li>
-          <li>Reapplication: {detail.reapplication}</li>
-          <li>Removable: {detail.isRemovable ? "Yes" : "No"}</li>
-        </ul>
-      </section>
+      {detail.behaviors.map((behavior, index) => (
+        <section>
+          <h3>{`Effect ${index + 1}`}</h3>
+          <ul class="list-reset">
+            <li>Effect Type: {behavior.effectType}</li>
+            <li>Value: {behavior.value}</li>
+          </ul>
+        </section>
+      ))}
     </div>
-    {detail.behaviors.length > 0 ? (
-      <section>
-        <h3>Behaviors</h3>
-        <ul class="list-reset">
-          {detail.behaviors.map((behavior) => <li>{behavior}</li>)}
-        </ul>
-      </section>
-    ) : null}
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Applied By</h2>
+        <p>This status is shown in the context of the ability that applies it.</p>
+      </div>
+    </div>
+    <div class="panel" style="padding: 1rem;">
+      <p><a href={`${base}abilities/${resolvedAbility.routeKey}/`}>{resolvedAbility.displayName}</a></p>
+    </div>
   </section>
 </BaseLayout>

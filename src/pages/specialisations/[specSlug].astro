@@ -59,11 +59,13 @@ if (!resolvedSpec) {
       {
         resolvedSpec.abilityPools.map((pool) => (
           <article class="pool-card">
-            <div class="section-header" style="margin-top: 0;">
-              <IconBadge name={pool.displayName} icon={pool.icon} />
-              <div>
-                <h3><a href={`${base}pools/${pool.routeKey}/`}>{pool.displayName}</a></h3>
-                <p>{pool.description || "No description provided in the export."}</p>
+            <div class="pool-header">
+              <div class="pool-header__main">
+                <IconBadge name={pool.displayName} icon={pool.icon} />
+                <div>
+                  <h3><a href={`${base}pools/${pool.routeKey}/`}>{pool.displayName}</a></h3>
+                  <p>{pool.description || "No description provided in the export."}</p>
+                </div>
               </div>
               <div class="badge-row">
                 <span class="badge">{pool.totalPoints} points available</span>
@@ -110,3 +112,38 @@ if (!resolvedSpec) {
     </div>
   </section>
 </BaseLayout>
+
+<style>
+  .pool-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .pool-header__main {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  .pool-header__main > div {
+    min-width: 0;
+  }
+
+  .pool-header h3 {
+    margin-bottom: 0.45rem;
+  }
+
+  .pool-header p {
+    margin: 0;
+  }
+
+  @media (max-width: 720px) {
+    .pool-header {
+      flex-direction: column;
+    }
+  }
+</style>

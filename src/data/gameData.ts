@@ -199,6 +199,11 @@ export type SiteStatusLink = {
   isRemovable: boolean;
 };
 
+export type SiteStatusBehavior = {
+  effectType: string;
+  value: string;
+};
+
 export type SiteBuff = {
   id: string;
   routeKey: string;
@@ -210,7 +215,7 @@ export type SiteBuff = {
   reapplication: string;
   statusType: string;
   isRemovable: boolean;
-  behaviors: string[];
+  behaviors: SiteStatusBehavior[];
 };
 
 export type SiteDebuff = {
@@ -226,7 +231,7 @@ export type SiteDebuff = {
   categoryNames: string[];
   isRemovable: boolean;
   breakThreshold: string | null;
-  behaviors: string[];
+  behaviors: SiteStatusBehavior[];
 };
 
 export type SiteAbility = {
@@ -449,15 +454,86 @@ function routeKeysBySlug<T extends { id: string; slug: string }>(items: T[]): Ma
   return new Map(items.map((item) => [item.id, (counts.get(item.slug) ?? 0) > 1 ? `${item.slug}--${item.id}` : item.slug]));
 }
 
-function summarizeBehavior(behavior: RawStatusEffectBehavior): string {
+function summarizeBehavior(behavior: RawStatusEffectBehavior): SiteStatusBehavior {
   if (!isObject(behavior)) {
-    return "Unknown behavior";
+    return { effectType: "Unknown behavior", value: "0" };
   }
 
   const effectType = isObject(behavior.effectType) ? asString(behavior.effectType.name, "Effect") : "Effect";
-  const baseValue = "baseValue" in behavior ? formatValue(behavior.baseValue) : "0";
-  const requiredStacks = "requiredStacks" in behavior ? formatValue(behavior.requiredStacks) : "0";
-  return `${effectType}: ${baseValue} (Stacks required: ${requiredStacks})`;
+  const value = "baseValue" in behavior ? formatValue(behavior.baseValue) : "0";
+  return { effectType, value };
+}
+
+function pickNumericFallback(values: Array<unknown>, { preferNonZero = false } = {}): number | null {
+  const numericValues = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (numericValues.length === 0) {
+    return null;
+  }
+
+  if (preferNonZero) {
+    const nonZero = numericValues.find((value) => value !== 0);
+    if (nonZero !== undefined) {
+      return nonZero;
+    }
+  }
+
+  return numericValues[0] ?? null;
+}
+
+function fallbackValueFromBehaviors(behaviors: RawStatusEffectBehavior[]): number | null {
+  return pickNumericFallback(
+    behaviors.map((behavior) => (isObject(behavior) && typeof behavior.baseValue === "number" ? behavior.baseValue : null)),
+    { preferNonZero: true }
+  );
+}
+
+function fallbackTickIntervalFromBehaviors(behaviors: RawStatusEffectBehavior[]): number | null {
+  return pickNumericFallback(
+    behaviors.map((behavior) => (isObject(behavior) && typeof behavior.tickInterval === "number" ? behavior.tickInterval : null)),
+    { preferNonZero: true }
+  );
+}
+
+function fallbackBuffDurationFromBehaviors(
+  behaviors: RawStatusEffectBehavior[],
+  rawBuffs: Map<string, RawBuff>
+): number | null {
+  return pickNumericFallback(
+    behaviors.map((behavior) => {
+      if (!isObject(behavior) || !isObject(behavior.healingOverTimeBuff)) {
+        return null;
+      }
+
+      const referencedBuffId = asString(behavior.healingOverTimeBuff.id);
+      if (!referencedBuffId) {
+        return null;
+      }
+
+      return rawBuffs.get(referencedBuffId)?.baseDuration ?? null;
+    }),
+    { preferNonZero: true }
+  );
+}
+
+function resolveApplicationNumber(rawValue: number, fallbackValue: number | null): number {
+  if (rawValue !== 0) {
+    return rawValue;
+  }
+
+  return fallbackValue ?? rawValue;
+}
+
+function resolveStatusType(linkStatusType: string, definitionStatusType: string | null | undefined): string {
+  if (!definitionStatusType) {
+    return linkStatusType;
+  }
+
+  const genericStatusTypes = new Set(["Physical", "Magical"]);
+  if (genericStatusTypes.has(linkStatusType) && !genericStatusTypes.has(definitionStatusType)) {
+    return definitionStatusType;
+  }
+
+  return linkStatusType;
 }
 
 function summarizeBreakThreshold(value: unknown): string | null {
@@ -516,6 +592,8 @@ const poolRouteKeys = routeKeysBySlug(gameData.abilityPools);
 const abilityRouteKeys = routeKeysBySlug([...gameData.abilities, ...gameData.autoAttacks]);
 const buffRouteKeys = routeKeysBySlug(gameData.buffs);
 const debuffRouteKeys = routeKeysBySlug(gameData.debuffs);
+const rawBuffById = new Map(gameData.buffs.map((item) => [item.id, item]));
+const rawDebuffById = new Map(gameData.debuffs.map((item) => [item.id, item]));
 
 const specClassLinks = new Map<string, RawClass>();
 for (const rawClass of gameData.classes) {
@@ -638,20 +716,31 @@ const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
   linkedBuffs: ability.buffs
     .map((entry) => {
       const buff = siteBuffById.get(entry.definition.id);
+      const rawBuff = rawBuffById.get(entry.definition.id);
       if (!buff) {
         return null;
       }
+
+      const fallbackDuration = pickNumericFallback(
+        [
+          rawBuff?.baseDuration ?? null,
+          rawBuff ? fallbackBuffDurationFromBehaviors(rawBuff.behaviors, rawBuffById) : null
+        ],
+        { preferNonZero: true }
+      );
+      const fallbackValue = rawBuff ? fallbackValueFromBehaviors(rawBuff.behaviors) : null;
+      const fallbackTickInterval = rawBuff ? fallbackTickIntervalFromBehaviors(rawBuff.behaviors) : null;
 
       return {
         routeKey: buff.routeKey,
         id: buff.id,
         slug: buff.slug,
         displayName: buff.displayName,
-        duration: entry.duration,
-        value: entry.value,
-        tickInterval: entry.tickInterval,
+        duration: resolveApplicationNumber(entry.duration, fallbackDuration),
+        value: resolveApplicationNumber(entry.value, fallbackValue),
+        tickInterval: resolveApplicationNumber(entry.tickInterval, fallbackTickInterval),
         reapplication: entry.reapplicationBehavior.name,
-        statusType: entry.statusType.name,
+        statusType: resolveStatusType(entry.statusType.name, rawBuff?.statusType.name),
         isRemovable: entry.isRemovable
       };
     })
@@ -659,20 +748,41 @@ const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
   linkedDebuffs: ability.debuffs
     .map((entry) => {
       const debuff = siteDebuffById.get(entry.definition.id);
+      const rawDebuff = rawDebuffById.get(entry.definition.id);
       if (!debuff) {
         return null;
       }
+
+      const fallbackDuration = rawDebuff?.baseDuration ?? null;
+      const fallbackValue = pickNumericFallback(
+        [
+          rawDebuff ? fallbackValueFromBehaviors(rawDebuff.behaviors) : null,
+          isObject(rawDebuff?.legacyEffectSettings) && typeof rawDebuff.legacyEffectSettings.value === "number"
+            ? rawDebuff.legacyEffectSettings.value
+            : null
+        ],
+        { preferNonZero: true }
+      );
+      const fallbackTickInterval = pickNumericFallback(
+        [
+          rawDebuff ? fallbackTickIntervalFromBehaviors(rawDebuff.behaviors) : null,
+          isObject(rawDebuff?.legacyEffectSettings) && typeof rawDebuff.legacyEffectSettings.tickInterval === "number"
+            ? rawDebuff.legacyEffectSettings.tickInterval
+            : null
+        ],
+        { preferNonZero: true }
+      );
 
       return {
         routeKey: debuff.routeKey,
         id: debuff.id,
         slug: debuff.slug,
         displayName: debuff.displayName,
-        duration: entry.duration,
-        value: entry.value,
-        tickInterval: entry.tickInterval,
+        duration: resolveApplicationNumber(entry.duration, fallbackDuration),
+        value: resolveApplicationNumber(entry.value, fallbackValue),
+        tickInterval: resolveApplicationNumber(entry.tickInterval, fallbackTickInterval),
         reapplication: entry.reapplicationBehavior.name,
-        statusType: entry.statusType.name,
+        statusType: resolveStatusType(entry.statusType.name, rawDebuff?.statusType.name),
         isRemovable: entry.isRemovable
       };
     })

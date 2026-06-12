@@ -136,7 +136,7 @@ const pool = resolvedAbility.poolMemberships[0];
               <p>Value: {link.value} | Tick: {link.tickInterval} | Removable: {link.isRemovable ? "Yes" : "No"}</p>
               {detail.behaviors.length > 0 ? (
                 <ul class="list-reset">
-                  {detail.behaviors.map((behavior) => <li>{behavior}</li>)}
+                  {detail.behaviors.map((behavior) => <li>{behavior.effectType}: {behavior.value}</li>)}
                 </ul>
               ) : null}
             </a>
@@ -164,7 +164,7 @@ const pool = resolvedAbility.poolMemberships[0];
               {detail.breakThreshold ? <p>Break Threshold: {detail.breakThreshold}</p> : null}
               {detail.behaviors.length > 0 ? (
                 <ul class="list-reset">
-                  {detail.behaviors.map((behavior) => <li>{behavior}</li>)}
+                  {detail.behaviors.map((behavior) => <li>{behavior.effectType}: {behavior.value}</li>)}
                 </ul>
               ) : null}
             </a>

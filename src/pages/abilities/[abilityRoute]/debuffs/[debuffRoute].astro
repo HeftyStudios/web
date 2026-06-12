@@ -41,30 +41,20 @@ if (!link || !detail) {
   />
 
   <section class="hero">
-    <span class="eyebrow">Linked Debuff</span>
+    <span class="eyebrow">Debuff</span>
     <div class="card-title">
       <IconBadge name={detail.displayName} icon={detail.icon} />
       <div>
         <h1>{detail.displayName}</h1>
-        <div class="badge-row">
-          <span class="badge">{link.statusType}</span>
-          <span class="badge">Duration {link.duration}</span>
-          <span class="badge">{link.reapplication}</span>
-        </div>
+        {detail.categoryNames.length > 0 ? (
+          <div class="badge-row">
+            {detail.categoryNames.map((category) => (
+              <span class="badge">{category}</span>
+            ))}
+          </div>
+        ) : null}
         <p class="lede">{detail.description || "Debuff data linked from this ability in the Arena Game export."}</p>
       </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="section-header">
-      <div>
-        <h2>Applied By</h2>
-        <p>This status is shown in the context of the ability that applies it.</p>
-      </div>
-    </div>
-    <div class="panel" style="padding: 1rem;">
-      <p><a href={`${base}abilities/${resolvedAbility.routeKey}/`}>{resolvedAbility.displayName}</a></p>
     </div>
   </section>
 
@@ -79,33 +69,33 @@ if (!link || !detail) {
       <section>
         <h3>Application</h3>
         <ul class="list-reset">
-          <li>Status Type: {link.statusType}</li>
           <li>Duration: {link.duration}</li>
-          <li>Value: {link.value}</li>
-          <li>Tick Interval: {link.tickInterval}</li>
           <li>Reapplication: {link.reapplication}</li>
+          <li>Status Type: {link.statusType}</li>
           <li>Removable: {link.isRemovable ? "Yes" : "No"}</li>
         </ul>
       </section>
-      <section>
-        <h3>Definition</h3>
-        <ul class="list-reset">
-          <li>Base Duration: {detail.baseDuration}</li>
-          <li>Status Type: {detail.statusType}</li>
-          <li>Reapplication: {detail.reapplication}</li>
-          <li>Removable: {detail.isRemovable ? "Yes" : "No"}</li>
-          {detail.categoryNames.length > 0 ? <li>Categories: {detail.categoryNames.join(", ")}</li> : null}
-          {detail.breakThreshold ? <li>Break Threshold: {detail.breakThreshold}</li> : null}
-        </ul>
-      </section>
+      {detail.behaviors.map((behavior, index) => (
+        <section>
+          <h3>{`Effect ${index + 1}`}</h3>
+          <ul class="list-reset">
+            <li>Effect Type: {behavior.effectType}</li>
+            <li>Value: {behavior.value}</li>
+          </ul>
+        </section>
+      ))}
     </div>
-    {detail.behaviors.length > 0 ? (
-      <section>
-        <h3>Behaviors</h3>
-        <ul class="list-reset">
-          {detail.behaviors.map((behavior) => <li>{behavior}</li>)}
-        </ul>
-      </section>
-    ) : null}
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Applied By</h2>
+        <p>This status is shown in the context of the ability that applies it.</p>
+      </div>
+    </div>
+    <div class="panel" style="padding: 1rem;">
+      <p><a href={`${base}abilities/${resolvedAbility.routeKey}/`}>{resolvedAbility.displayName}</a></p>
+    </div>
   </section>
 </BaseLayout>
