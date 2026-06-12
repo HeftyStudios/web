@@ -81,6 +81,11 @@ if (!link || !detail) {
           <ul class="list-reset">
             <li>Effect Type: {behavior.effectType}</li>
             <li>Value: {behavior.value}</li>
+            {behavior.generatedBuff ? (
+              <li>
+                Applies Buff: <a href={`${base}abilities/${resolvedAbility.routeKey}/buffs/${behavior.generatedBuff.routeKey}/`}>{behavior.generatedBuff.displayName}</a>
+              </li>
+            ) : null}
           </ul>
         </section>
       ))}

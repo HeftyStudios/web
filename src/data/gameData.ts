@@ -126,6 +126,9 @@ type RawBuff = {
   statusType: {
     name: string;
   };
+  categories?: {
+    names?: string[];
+  };
   isRemovable: boolean;
   behaviors: RawStatusEffectBehavior[];
 };
@@ -202,6 +205,12 @@ export type SiteStatusLink = {
 export type SiteStatusBehavior = {
   effectType: string;
   value: string;
+  generatedBuff?: {
+    id: string;
+    routeKey: string;
+    slug: string;
+    displayName: string;
+  };
 };
 
 export type SiteBuff = {
@@ -464,6 +473,71 @@ function summarizeBehavior(behavior: RawStatusEffectBehavior): SiteStatusBehavio
   return { effectType, value };
 }
 
+function isPassiveMarkerBuff(buff: RawBuff | undefined): boolean {
+  return buff?.categories?.names?.includes("PassiveMarker") ?? false;
+}
+
+function resolveMarkerBuffTargetId(
+  markerBuff: RawBuff,
+  rawBuffs: Map<string, RawBuff>,
+  markerBuffIds: Set<string>
+): string | null {
+  const candidateIds = new Set<string>();
+
+  for (const behavior of markerBuff.behaviors) {
+    if (!isObject(behavior)) {
+      continue;
+    }
+
+    const referencedBuffs = [behavior.appliedBuff, behavior.trackedBuff];
+    for (const referencedBuff of referencedBuffs) {
+      if (!isObject(referencedBuff)) {
+        continue;
+      }
+
+      const candidateId = asString(referencedBuff.id);
+      if (!candidateId || markerBuffIds.has(candidateId) || !rawBuffs.has(candidateId)) {
+        continue;
+      }
+
+      candidateIds.add(candidateId);
+    }
+  }
+
+  return candidateIds.size === 1 ? [...candidateIds][0] ?? null : null;
+}
+
+function mapStatusBehavior(
+  behavior: RawStatusEffectBehavior,
+  rawBuffs: Map<string, RawBuff>,
+  routeKeys: Map<string, string>
+): SiteStatusBehavior {
+  const summary = summarizeBehavior(behavior);
+  if (!isObject(behavior) || !isObject(behavior.appliedBuff)) {
+    return summary;
+  }
+
+  const appliedBuffId = asString(behavior.appliedBuff.id);
+  if (!appliedBuffId) {
+    return summary;
+  }
+
+  const appliedBuff = rawBuffs.get(appliedBuffId);
+  if (!appliedBuff) {
+    return summary;
+  }
+
+  return {
+    ...summary,
+    generatedBuff: {
+      id: appliedBuff.id,
+      routeKey: routeKeys.get(appliedBuff.id) ?? appliedBuff.slug,
+      slug: appliedBuff.slug,
+      displayName: appliedBuff.displayName
+    }
+  };
+}
+
 function pickNumericFallback(values: Array<unknown>, { preferNonZero = false } = {}): number | null {
   const numericValues = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   if (numericValues.length === 0) {
@@ -594,6 +668,15 @@ const buffRouteKeys = routeKeysBySlug(gameData.buffs);
 const debuffRouteKeys = routeKeysBySlug(gameData.debuffs);
 const rawBuffById = new Map(gameData.buffs.map((item) => [item.id, item]));
 const rawDebuffById = new Map(gameData.debuffs.map((item) => [item.id, item]));
+const passiveMarkerBuffIds = new Set(gameData.buffs.filter(isPassiveMarkerBuff).map((item) => item.id));
+const resolvedMarkerBuffIdById = new Map(
+  gameData.buffs
+    .filter((buff) => passiveMarkerBuffIds.has(buff.id))
+    .flatMap((buff) => {
+      const resolvedId = resolveMarkerBuffTargetId(buff, rawBuffById, passiveMarkerBuffIds);
+      return resolvedId ? [[buff.id, resolvedId] as const] : [];
+    })
+);
 
 const specClassLinks = new Map<string, RawClass>();
 for (const rawClass of gameData.classes) {
@@ -637,19 +720,21 @@ for (const spec of gameData.specialisations) {
   }
 }
 
-const siteBuffs = gameData.buffs.map<SiteBuff>((buff) => ({
-  id: buff.id,
-  routeKey: buffRouteKeys.get(buff.id) ?? buff.slug,
-  slug: buff.slug,
-  displayName: buff.displayName,
-  description: buff.description,
-  icon: toIcon(buff.icon),
-  baseDuration: buff.baseDuration,
-  reapplication: buff.reapplicationBehavior.name,
-  statusType: buff.statusType.name,
-  isRemovable: buff.isRemovable,
-  behaviors: buff.behaviors.map((behavior) => summarizeBehavior(behavior))
-}));
+const siteBuffs = gameData.buffs
+  .filter((buff) => !passiveMarkerBuffIds.has(buff.id))
+  .map<SiteBuff>((buff) => ({
+    id: buff.id,
+    routeKey: buffRouteKeys.get(buff.id) ?? buff.slug,
+    slug: buff.slug,
+    displayName: buff.displayName,
+    description: buff.description,
+    icon: toIcon(buff.icon),
+    baseDuration: buff.baseDuration,
+    reapplication: buff.reapplicationBehavior.name,
+    statusType: buff.statusType.name,
+    isRemovable: buff.isRemovable,
+    behaviors: buff.behaviors.map((behavior) => mapStatusBehavior(behavior, rawBuffById, buffRouteKeys))
+  }));
 
 const siteDebuffs = gameData.debuffs.map<SiteDebuff>((debuff) => ({
   id: debuff.id,
@@ -664,7 +749,7 @@ const siteDebuffs = gameData.debuffs.map<SiteDebuff>((debuff) => ({
   categoryNames: asStringArray(debuff.categories?.names),
   isRemovable: debuff.isRemovable,
   breakThreshold: summarizeBreakThreshold(debuff.breakThreshold),
-  behaviors: debuff.behaviors.map((behavior) => summarizeBehavior(behavior))
+  behaviors: debuff.behaviors.map((behavior) => mapStatusBehavior(behavior, rawBuffById, buffRouteKeys))
 }));
 
 const siteBuffById = new Map(siteBuffs.map((item) => [item.id, item]));
@@ -715,8 +800,9 @@ const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
   ]),
   linkedBuffs: ability.buffs
     .map((entry) => {
-      const buff = siteBuffById.get(entry.definition.id);
-      const rawBuff = rawBuffById.get(entry.definition.id);
+      const resolvedBuffId = resolvedMarkerBuffIdById.get(entry.definition.id) ?? entry.definition.id;
+      const buff = siteBuffById.get(resolvedBuffId);
+      const rawBuff = rawBuffById.get(resolvedBuffId);
       if (!buff) {
         return null;
       }
