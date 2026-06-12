@@ -1,0 +1,111 @@
+---
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../../../components/Breadcrumbs.astro";
+import IconBadge from "../../../../components/IconBadge.astro";
+import { getAbilities, getAbilityByRouteKey, getDebuffById } from "../../../../data/gameData";
+
+export function getStaticPaths() {
+  return getAbilities().flatMap((ability) =>
+    ability.linkedDebuffs.map((debuff) => ({
+      params: { abilityRoute: ability.routeKey, debuffRoute: debuff.routeKey },
+      props: { ability, debuffId: debuff.id }
+    }))
+  );
+}
+
+const { ability, debuffId } = Astro.props;
+const resolvedAbility = ability ?? getAbilityByRouteKey(Astro.params.abilityRoute ?? "");
+if (!resolvedAbility) {
+  throw new Error(`Missing ability for route '${Astro.params.abilityRoute}'.`);
+}
+
+const link = resolvedAbility.linkedDebuffs.find((entry) => entry.id === debuffId || entry.routeKey === Astro.params.debuffRoute);
+const detail = link ? getDebuffById(link.id) : undefined;
+const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+const primaryPool = resolvedAbility.poolMemberships[0];
+
+if (!link || !detail) {
+  throw new Error(`Missing debuff '${Astro.params.debuffRoute}' for ability '${resolvedAbility.routeKey}'.`);
+}
+---
+
+<BaseLayout title={`${detail.displayName} | ${resolvedAbility.displayName} | Arena Game`} description={detail.description}>
+  <Breadcrumbs
+    items={[
+      { href: base, label: "Home" },
+      { href: `${base}spellbook/`, label: "Spellbook" },
+      ...(primaryPool ? [{ href: `${base}pools/${primaryPool.routeKey}/`, label: primaryPool.displayName }] : []),
+      { href: `${base}abilities/${resolvedAbility.routeKey}/`, label: resolvedAbility.displayName },
+      { label: detail.displayName }
+    ]}
+  />
+
+  <section class="hero">
+    <span class="eyebrow">Linked Debuff</span>
+    <div class="card-title">
+      <IconBadge name={detail.displayName} icon={detail.icon} />
+      <div>
+        <h1>{detail.displayName}</h1>
+        <div class="badge-row">
+          <span class="badge">{link.statusType}</span>
+          <span class="badge">Duration {link.duration}</span>
+          <span class="badge">{link.reapplication}</span>
+        </div>
+        <p class="lede">{detail.description || "Debuff data linked from this ability in the Arena Game export."}</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Applied By</h2>
+        <p>This status is shown in the context of the ability that applies it.</p>
+      </div>
+    </div>
+    <div class="panel" style="padding: 1rem;">
+      <p><a href={`${base}abilities/${resolvedAbility.routeKey}/`}>{resolvedAbility.displayName}</a></p>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Status Details</h2>
+        <p>Resolved from the linked debuff definition and the ability application values.</p>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <section>
+        <h3>Application</h3>
+        <ul class="list-reset">
+          <li>Status Type: {link.statusType}</li>
+          <li>Duration: {link.duration}</li>
+          <li>Value: {link.value}</li>
+          <li>Tick Interval: {link.tickInterval}</li>
+          <li>Reapplication: {link.reapplication}</li>
+          <li>Removable: {link.isRemovable ? "Yes" : "No"}</li>
+        </ul>
+      </section>
+      <section>
+        <h3>Definition</h3>
+        <ul class="list-reset">
+          <li>Base Duration: {detail.baseDuration}</li>
+          <li>Status Type: {detail.statusType}</li>
+          <li>Reapplication: {detail.reapplication}</li>
+          <li>Removable: {detail.isRemovable ? "Yes" : "No"}</li>
+          {detail.categoryNames.length > 0 ? <li>Categories: {detail.categoryNames.join(", ")}</li> : null}
+          {detail.breakThreshold ? <li>Break Threshold: {detail.breakThreshold}</li> : null}
+        </ul>
+      </section>
+    </div>
+    {detail.behaviors.length > 0 ? (
+      <section>
+        <h3>Behaviors</h3>
+        <ul class="list-reset">
+          {detail.behaviors.map((behavior) => <li>{behavior}</li>)}
+        </ul>
+      </section>
+    ) : null}
+  </section>
+</BaseLayout>

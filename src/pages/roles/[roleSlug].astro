@@ -15,27 +15,51 @@ function toRoleSlug(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-const roles: RolePage[] = Array.from(
-  getSpecialisations().reduce((map, specialisation) => {
-    const slug = toRoleSlug(specialisation.role);
-    const existing = map.get(slug);
+function buildRoles(specialisations: SiteSpecialisation[]): RolePage[] {
+  return Array.from(
+    specialisations
+      .reduce((map, specialisation) => {
+        const slug = toRoleSlug(specialisation.role);
+        const existing = map.get(slug);
 
-    if (existing) {
-      existing.specialisations.push(specialisation);
-      return map;
-    }
+        if (existing) {
+          existing.specialisations.push(specialisation);
+          return map;
+        }
 
-    map.set(slug, {
-      name: specialisation.role,
-      slug,
-      specialisations: [specialisation]
-    });
-    return map;
-  }, new Map<string, RolePage>())
-  .values()
-);
+        map.set(slug, {
+          name: specialisation.role,
+          slug,
+          specialisations: [specialisation]
+        });
+        return map;
+      }, new Map<string, RolePage>())
+      .values()
+  );
+}
 
 export function getStaticPaths() {
+  const roles = Array.from(
+    getSpecialisations()
+      .reduce((map, specialisation) => {
+        const slug = specialisation.role.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+        const existing = map.get(slug);
+
+        if (existing) {
+          existing.specialisations.push(specialisation);
+          return map;
+        }
+
+        map.set(slug, {
+          name: specialisation.role,
+          slug,
+          specialisations: [specialisation]
+        });
+        return map;
+      }, new Map<string, RolePage>())
+      .values()
+  );
+
   return roles.map((role) => ({
     params: { roleSlug: role.slug },
     props: { role }
@@ -43,7 +67,7 @@ export function getStaticPaths() {
 }
 
 const { role } = Astro.props;
-const resolvedRole = role ?? roles.find((entry) => entry.slug === Astro.params.roleSlug);
+const resolvedRole = role ?? buildRoles(getSpecialisations()).find((entry) => entry.slug === Astro.params.roleSlug);
 const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 
 if (!resolvedRole) {

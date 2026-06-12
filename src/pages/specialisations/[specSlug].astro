@@ -40,8 +40,8 @@ if (!resolvedSpec) {
       <div>
         <h1>{resolvedSpec.displayName}</h1>
         <div class="badge-row">
-          <span class="badge">{resolvedSpec.classDisplayName}</span>
-          <a class="badge" href={`${base}roles/${toRoleSlug(resolvedSpec.role)}/`}>{resolvedSpec.role}</a>
+          <span class="badge">Class: {resolvedSpec.classDisplayName}</span>
+          <a class="badge" href={`${base}roles/${toRoleSlug(resolvedSpec.role)}/`}>Role: {resolvedSpec.role}</a>
         </div>
         <p class="lede">{resolvedSpec.description}</p>
       </div>
@@ -98,6 +98,7 @@ if (!resolvedSpec) {
                         </div>
                       </div>
                     </div>
+                    <p>{ability.description || "Open the ability page to inspect its combat details."}</p>
                   </a>
                 </article>
               ))}

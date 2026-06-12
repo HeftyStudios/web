@@ -255,6 +255,7 @@ export type SiteAbility = {
     id: string;
     slug: string;
     displayName: string;
+    icon: SiteIcon;
     classSlug: string;
     classDisplayName: string;
   }[];
@@ -269,7 +270,7 @@ export type SiteAbilityPool = {
   tag: string;
   totalPoints: number;
   unlockRequirements: string[];
-  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind" | "icon" | "isAutoAttack">[];
+  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "description" | "level" | "loadoutKind" | "icon" | "isAutoAttack">[];
 };
 
 export type SitePool = {
@@ -372,7 +373,7 @@ function toPairs(record: UnknownRecord | null | undefined, preferredOrder: strin
     const raw = record[key];
     return {
       label: startCase(key),
-      value: formatValue(raw)
+      value: key === "criticalStrikeChance" && typeof raw === "number" ? `${(raw * 100).toFixed(0)}%` : formatValue(raw)
     };
   });
 }
@@ -672,6 +673,7 @@ const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
       id: spec.id,
       slug: spec.slug,
       displayName: spec.displayName,
+      icon: toIcon(spec.icon),
       classSlug: linkedClass?.slug ?? "",
       classDisplayName: linkedClass?.displayName ?? "Unknown"
     };
@@ -746,6 +748,7 @@ const siteSpecialisations = gameData.specialisations.map<SiteSpecialisation>((sp
               routeKey: ability.routeKey,
               slug: ability.slug,
               displayName: ability.displayName,
+              description: ability.description,
               level: ability.level,
               loadoutKind: ability.loadoutKind,
               icon: ability.icon,
@@ -824,7 +827,13 @@ const siteClasses = gameData.classes.map<SiteClass>((item) => ({
     "haste",
     "criticalStrikeChance"
   ]),
-  secondaryResource: toPairs(item.secondaryResource, ["label", "max", "regenPerSecond", "type"]),
+  secondaryResource: summarizeObject(item.secondaryResource, ["type", "max", "regenPerSecond"]).map((entry) => {
+    const [label, ...rest] = entry.split(": ");
+    return {
+      label,
+      value: rest.join(": ")
+    };
+  }),
   specialisations: item.specialisations
     .map((specRef) => siteSpecById.get(specRef.id))
     .filter((entry): entry is SiteSpecialisation => entry !== undefined)
