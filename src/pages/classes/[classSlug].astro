@@ -20,7 +20,7 @@ if (!resolvedClass) {
 ---
 
 <BaseLayout title={`${resolvedClass.displayName} | Arena Game`} description={resolvedClass.description}>
-  <Breadcrumbs items={[{ href: base, label: "Home" }, { label: resolvedClass.displayName }]} />
+  <Breadcrumbs items={[{ href: base, label: "Home" }, { href: `${base}classes/`, label: "Classes" }, { label: resolvedClass.displayName }]} />
 
   <section class="hero">
     <span class="eyebrow">Class</span>

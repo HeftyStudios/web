@@ -145,7 +145,7 @@ type RawGameData = {
   schemaVersion: string;
   generatedAtUtc: string;
   sourceRevision: string | null;
-  warnings: string[];
+  warnings?: string[];
   metadata: UnknownRecord;
   classes: RawClass[];
   specialisations: RawSpecialisation[];
@@ -164,6 +164,7 @@ export type SiteIcon = {
 const require = createRequire(import.meta.url);
 const arenaDataPackageEntryPath = require.resolve("@hefty-studios/arena-game-data");
 const arenaDataPackageRoot = path.dirname(arenaDataPackageEntryPath);
+const arenaDataPackageVersion = JSON.parse(fs.readFileSync(path.join(arenaDataPackageRoot, "package.json"), "utf-8")).version as string;
 const siteBase =
   typeof import.meta.env.BASE_URL === "string" && import.meta.env.BASE_URL.length > 0
     ? import.meta.env.BASE_URL.endsWith("/")
@@ -318,7 +319,7 @@ function assertGameData(value: unknown): asserts value is RawGameData {
     throw new Error("Game data export is not an object.");
   }
 
-  const requiredArrays = ["classes", "specialisations", "abilityPools", "abilities", "buffs", "debuffs", "warnings"];
+  const requiredArrays = ["classes", "specialisations", "abilityPools", "abilities", "buffs", "debuffs"];
 
   for (const key of requiredArrays) {
     if (!Array.isArray(value[key])) {
@@ -772,10 +773,9 @@ const sitePoolByRouteKey = new Map(sitePools.map((item) => [item.routeKey, item]
 
 export const siteMeta = {
   schemaVersion: gameData.schemaVersion,
+  packageVersion: arenaDataPackageVersion,
   generatedAtUtc: gameData.generatedAtUtc,
   sourceRevision: gameData.sourceRevision,
-  warningCount: gameData.warnings.length,
-  warnings: gameData.warnings,
   metadata: gameData.metadata,
   totalClasses: siteClasses.length,
   totalSpecialisations: siteSpecialisations.length,
