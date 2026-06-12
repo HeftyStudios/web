@@ -15,7 +15,7 @@ const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL :
     <span class="eyebrow">Global Tome</span>
     <h1>The full spellbook, grouped by pool.</h1>
     <p class="lede">
-      Shared pools are shown by default. Turn on the toggle to include class and specialisation pools in the tome.
+      Shared pools are shown by default. Add class and specialisation pools from the filters when you want a wider view.
     </p>
     <div class="badge-row">
       <span class="badge">{pools.length} pools</span>
@@ -27,9 +27,22 @@ const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL :
     <label for="spellbook-search" class="muted">Search pools</label>
     <input id="spellbook-search" type="search" placeholder="Search by pool name, class, specialisation, or ability name" />
     <div class="badge-row" style="margin-top: 0.9rem;">
-      <label class="chip" for="show-all-pools">
-        <input id="show-all-pools" type="checkbox" style="margin: 0;" />
-        Show class and specialisation pools
+      <label class="chip" for="filter-shared">
+        <input id="filter-shared" type="checkbox" data-filter-tag="Shared" checked style="margin: 0;" />
+        Shared
+      </label>
+      <label class="chip" for="filter-class">
+        <input id="filter-class" type="checkbox" data-filter-tag="Class" style="margin: 0;" />
+        Class
+      </label>
+      <label class="chip" for="filter-specialisation">
+        <input
+          id="filter-specialisation"
+          type="checkbox"
+          data-filter-tag="Specialisation"
+          style="margin: 0;"
+        />
+        Specialisation
       </label>
     </div>
   </section>
@@ -85,24 +98,31 @@ const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL :
 
   <script>
     const input = document.querySelector("#spellbook-search");
-    const toggle = document.querySelector("#show-all-pools");
+    const tagFilters = Array.from(document.querySelectorAll("[data-filter-tag]"));
     const cards = Array.from(document.querySelectorAll("#spellbook-grid [data-search]"));
 
     const applyFilters = () => {
       const query = String(input && "value" in input ? input.value : "").trim().toLowerCase();
-      const showAllPools = Boolean(toggle && "checked" in toggle && toggle.checked);
+      const selectedTags = new Set(
+        tagFilters
+          .filter((filter) => "checked" in filter && filter.checked)
+          .map((filter) => filter.getAttribute("data-filter-tag") || "")
+          .filter(Boolean)
+      );
 
       for (const card of cards) {
         const haystack = card.getAttribute("data-search") || "";
         const tag = card.getAttribute("data-tag") || "";
         const matchesText = query.length === 0 || haystack.includes(query);
-        const matchesTag = showAllPools || tag === "Shared";
+        const matchesTag = selectedTags.has(tag);
         card.toggleAttribute("hidden", !(matchesText && matchesTag));
       }
     };
 
     input?.addEventListener("input", applyFilters);
-    toggle?.addEventListener("change", applyFilters);
+    for (const filter of tagFilters) {
+      filter.addEventListener("change", applyFilters);
+    }
     applyFilters();
   </script>
 </BaseLayout>

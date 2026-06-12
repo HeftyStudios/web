@@ -446,8 +446,11 @@ function summarizeBreakThreshold(value: unknown): string | null {
 
 function summarizeUnlockRequirements(value: UnknownRecord): string[] {
   return Object.entries(value)
-    .filter(([, amount]) => typeof amount === "number" && amount >= 0)
-    .map(([level, amount]) => `${startCase(level)}: ${amount} points`);
+    .filter(([, amount]) => typeof amount === "number" && amount > 0)
+    .map(([level, amount]) => {
+      const label = startCase(level).replace(/^Level(\d)/, "Level $1");
+      return `${label}: ${amount} points`;
+    });
 }
 
 assertGameData(rawGameData);
