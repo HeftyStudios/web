@@ -51,8 +51,14 @@ if (!resolvedPool) {
                 <div>
                   <h3>{ability.displayName}</h3>
                   <div class="badge-row">
-                    <span class="chip">Level {ability.level}</span>
-                    <span class="chip">{ability.loadoutKind}</span>
+                    {ability.isAutoAttack ? (
+                      <span class="chip">Auto Attack</span>
+                    ) : (
+                      <>
+                        <span class="chip">Level {ability.level}</span>
+                        <span class="chip">{ability.loadoutKind}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

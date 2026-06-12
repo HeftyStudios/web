@@ -27,6 +27,7 @@ if (!resolvedSpec) {
   <Breadcrumbs
     items={[
       { href: base, label: "Home" },
+      { href: `${base}classes/`, label: "Classes" },
       { href: `${base}classes/${resolvedSpec.classSlug}/`, label: resolvedSpec.classDisplayName },
       { label: resolvedSpec.displayName }
     ]}
@@ -64,8 +65,7 @@ if (!resolvedSpec) {
                 <p>{pool.description || "No description provided in the export."}</p>
               </div>
               <div class="badge-row">
-                <span class="badge">{pool.totalPoints} points</span>
-                <span class="badge">{pool.abilities.length} abilities</span>
+                <span class="badge">{pool.totalPoints} points available</span>
               </div>
             </div>
             {pool.unlockRequirements.length > 0 ? (
@@ -87,8 +87,14 @@ if (!resolvedSpec) {
                       <div>
                         <h3>{ability.displayName}</h3>
                         <div class="badge-row">
-                          <span class="chip">Level {ability.level}</span>
-                          <span class="chip">{ability.loadoutKind}</span>
+                          {ability.isAutoAttack ? (
+                            <span class="chip">Auto Attack</span>
+                          ) : (
+                            <>
+                              <span class="chip">Level {ability.level}</span>
+                              <span class="chip">{ability.loadoutKind}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

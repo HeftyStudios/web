@@ -35,6 +35,8 @@ const resolvedBuffs = resolvedAbility.linkedBuffs
 const resolvedDebuffs = resolvedAbility.linkedDebuffs
   .map((entry) => ({ link: entry, detail: getDebuffById(entry.id) }))
   .filter((entry): entry is ResolvedDebuffEntry => entry.detail !== undefined);
+
+const primaryPool = resolvedAbility.poolMemberships[0];
 ---
 
 <BaseLayout title={`${resolvedAbility.displayName} | Arena Game`} description={resolvedAbility.description}>
@@ -42,6 +44,7 @@ const resolvedDebuffs = resolvedAbility.linkedDebuffs
     items={[
       { href: base, label: "Home" },
       { href: `${base}spellbook/`, label: "Spellbook" },
+      ...(primaryPool ? [{ href: `${base}pools/${primaryPool.routeKey}/`, label: primaryPool.displayName }] : []),
       { label: resolvedAbility.displayName }
     ]}
   />
@@ -53,11 +56,17 @@ const resolvedDebuffs = resolvedAbility.linkedDebuffs
       <div>
         <h1>{resolvedAbility.displayName}</h1>
         <div class="badge-row">
-          <span class="badge">Level {resolvedAbility.level}</span>
-          <span class="badge">{resolvedAbility.loadoutKind}</span>
+          {resolvedAbility.isAutoAttack ? (
+            <span class="badge">Auto Attack</span>
+          ) : (
+            <>
+              <span class="badge">Level {resolvedAbility.level}</span>
+              <span class="badge">{resolvedAbility.loadoutKind}</span>
+            </>
+          )}
           <span class="badge">{resolvedAbility.poolMemberships.length} pools</span>
         </div>
-        <p class="lede">{resolvedAbility.description}</p>
+        <p class="lede">{resolvedAbility.description || "Core attack behavior exported from the Arena Game data bundle."}</p>
       </div>
     </div>
   </section>

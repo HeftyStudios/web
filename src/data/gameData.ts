@@ -96,6 +96,18 @@ type RawAbility = {
   debuffs: RawAbilityEffectRef[];
 };
 
+type RawAutoAttack = {
+  id: string;
+  type: "autoAttack";
+  name: string;
+  displayName: string;
+  slug: string;
+  description: string;
+  icon: UnknownRecord | null;
+  combat: UnknownRecord;
+  delivery: UnknownRecord;
+};
+
 type RawStatusEffectBehavior = UnknownRecord;
 
 type RawBuff = {
@@ -151,6 +163,7 @@ type RawGameData = {
   specialisations: RawSpecialisation[];
   abilityPools: RawAbilityPool[];
   abilities: RawAbility[];
+  autoAttacks: RawAutoAttack[];
   buffs: RawBuff[];
   debuffs: RawDebuff[];
 };
@@ -224,6 +237,7 @@ export type SiteAbility = {
   icon: SiteIcon;
   level: number;
   loadoutKind: string;
+  isAutoAttack: boolean;
   outputSummary: string[];
   damageSummary: string[];
   timingSummary: string[];
@@ -255,7 +269,7 @@ export type SiteAbilityPool = {
   tag: string;
   totalPoints: number;
   unlockRequirements: string[];
-  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind" | "icon">[];
+  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind" | "icon" | "isAutoAttack">[];
 };
 
 export type SitePool = {
@@ -265,7 +279,7 @@ export type SitePool = {
   displayName: string;
   description: string;
   tag: string;
-  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind" | "description" | "icon">[];
+  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind" | "description" | "icon" | "isAutoAttack">[];
   specialisations: {
     id: string;
     slug: string;
@@ -299,7 +313,7 @@ export type SiteClass = {
   icon: SiteIcon;
   stats: { label: string; value: string }[];
   secondaryResource: { label: string; value: string }[];
-  specialisations: Pick<SiteSpecialisation, "id" | "slug" | "displayName" | "role" | "description">[];
+  specialisations: Pick<SiteSpecialisation, "id" | "slug" | "displayName" | "role" | "description" | "icon">[];
 };
 
 function isObject(value: unknown): value is UnknownRecord {
@@ -446,11 +460,32 @@ function summarizeBreakThreshold(value: unknown): string | null {
 
 function summarizeUnlockRequirements(value: UnknownRecord): string[] {
   return Object.entries(value)
-    .filter(([, amount]) => typeof amount === "number" && amount > 0)
+    .filter(([, amount]) => typeof amount === "number" && amount >= 0)
     .map(([level, amount]) => {
       const label = startCase(level).replace(/^Level(\d)/, "Level $1");
       return `${label}: ${amount} points`;
     });
+}
+
+function getAccessibleLevels(value: UnknownRecord): Set<number> {
+  return new Set(
+    Object.entries(value)
+      .filter(([, amount]) => typeof amount === "number" && amount >= 0)
+      .map(([level]) => Number.parseInt(level.replace(/^level/i, ""), 10))
+      .filter((level) => Number.isFinite(level))
+  );
+}
+
+function compareAbilities(left: Pick<SiteAbility, "displayName" | "level" | "isAutoAttack">, right: Pick<SiteAbility, "displayName" | "level" | "isAutoAttack">): number {
+  if (left.isAutoAttack !== right.isAutoAttack) {
+    return left.isAutoAttack ? -1 : 1;
+  }
+
+  if (left.level !== right.level) {
+    return left.level - right.level;
+  }
+
+  return left.displayName.localeCompare(right.displayName);
 }
 
 assertGameData(rawGameData);
@@ -461,7 +496,7 @@ const poolById = new Map(gameData.abilityPools.map((item) => [item.id, item]));
 const classRouteKeys = routeKeysBySlug(gameData.classes);
 const specRouteKeys = routeKeysBySlug(gameData.specialisations);
 const poolRouteKeys = routeKeysBySlug(gameData.abilityPools);
-const abilityRouteKeys = routeKeysBySlug(gameData.abilities);
+const abilityRouteKeys = routeKeysBySlug([...gameData.abilities, ...gameData.autoAttacks]);
 const buffRouteKeys = routeKeysBySlug(gameData.buffs);
 const debuffRouteKeys = routeKeysBySlug(gameData.debuffs);
 
@@ -549,6 +584,7 @@ const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
   icon: toIcon(ability.icon),
   level: ability.level,
   loadoutKind: ability.loadoutKind.name,
+  isAutoAttack: false,
   outputSummary: summarizeObject(ability.output, [
     "type",
     "value",
@@ -642,7 +678,32 @@ const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
   })
 }));
 
-const siteAbilityById = new Map(siteAbilities.map((item) => [item.id, item]));
+const siteAutoAttacks = gameData.autoAttacks.map<SiteAbility>((autoAttack) => ({
+  id: autoAttack.id,
+  routeKey: abilityRouteKeys.get(autoAttack.id) ?? autoAttack.slug,
+  slug: autoAttack.slug,
+  displayName: autoAttack.displayName,
+  description: autoAttack.description,
+  icon: toIcon(autoAttack.icon),
+  level: 0,
+  loadoutKind: "Auto Attack",
+  isAutoAttack: true,
+  outputSummary: [],
+  damageSummary: summarizeObject(autoAttack.combat, ["damage"]),
+  timingSummary: summarizeObject(autoAttack.combat, ["attackInterval"]),
+  resourceSummary: [],
+  targetingSummary: summarizeObject(autoAttack.combat, ["range", "requiresTarget", "requiresFacingTarget"]).concat(
+    summarizeObject(autoAttack.delivery, ["mode", "projectileSpeed"])
+  ),
+  linkedBuffs: [],
+  linkedDebuffs: [],
+  poolMemberships: [],
+  specialisationLinks: []
+}));
+
+const allSiteAbilities = [...siteAbilities, ...siteAutoAttacks];
+
+const siteAbilityById = new Map(allSiteAbilities.map((item) => [item.id, item]));
 
 const siteSpecialisations = gameData.specialisations.map<SiteSpecialisation>((spec) => {
   const linkedClass = specClassLinks.get(spec.id);
@@ -664,6 +725,8 @@ const siteSpecialisations = gameData.specialisations.map<SiteSpecialisation>((sp
           return null;
         }
 
+        const accessibleLevels = getAccessibleLevels(access.unlockRequirements);
+
         return {
           id: pool.id,
           routeKey: poolRouteKeys.get(pool.id) ?? pool.slug,
@@ -674,9 +737,10 @@ const siteSpecialisations = gameData.specialisations.map<SiteSpecialisation>((sp
           totalPoints: access.totalPoints,
           unlockRequirements: summarizeUnlockRequirements(access.unlockRequirements),
           abilities: pool.entries
-            .filter((entry) => entry.kind === "ability")
+            .filter((entry) => entry.kind === "ability" || entry.kind === "autoAttack")
             .map((entry) => siteAbilityById.get(entry.asset.id))
             .filter((item): item is SiteAbility => item !== undefined)
+            .filter((ability) => ability.isAutoAttack || accessibleLevels.has(ability.level))
             .map((ability) => ({
               id: ability.id,
               routeKey: ability.routeKey,
@@ -684,8 +748,10 @@ const siteSpecialisations = gameData.specialisations.map<SiteSpecialisation>((sp
               displayName: ability.displayName,
               level: ability.level,
               loadoutKind: ability.loadoutKind,
-              icon: ability.icon
+              icon: ability.icon,
+              isAutoAttack: ability.isAutoAttack
             }))
+            .sort(compareAbilities)
         };
       })
       .filter((item): item is SiteAbilityPool => item !== null)
@@ -703,7 +769,7 @@ const sitePools = gameData.abilityPools
     description: pool.description,
     tag: pool.tag?.name ?? "Shared",
     abilities: pool.entries
-      .filter((entry) => entry.kind === "ability")
+      .filter((entry) => entry.kind === "ability" || entry.kind === "autoAttack")
       .map((entry) => siteAbilityById.get(entry.asset.id))
       .filter((item): item is SiteAbility => item !== undefined)
       .map((ability) => ({
@@ -714,8 +780,10 @@ const sitePools = gameData.abilityPools
         description: ability.description,
         level: ability.level,
         loadoutKind: ability.loadoutKind,
-        icon: ability.icon
-      })),
+        icon: ability.icon,
+        isAutoAttack: ability.isAutoAttack
+      }))
+      .sort(compareAbilities),
     specialisations: gameData.specialisations
       .flatMap((spec) => {
         const access = spec.abilityPoolAccesses.find((item) => item.pool.id === pool.id);
@@ -765,13 +833,14 @@ const siteClasses = gameData.classes.map<SiteClass>((item) => ({
       slug: spec.slug,
       displayName: spec.displayName,
       role: spec.role,
-      description: spec.description
+      description: spec.description,
+      icon: spec.icon
     }))
 }));
 
 const siteClassBySlug = new Map(siteClasses.map((item) => [item.slug, item]));
 const siteSpecBySlug = new Map(siteSpecialisations.map((item) => [item.slug, item]));
-const siteAbilityByRouteKey = new Map(siteAbilities.map((item) => [item.routeKey, item]));
+const siteAbilityByRouteKey = new Map(allSiteAbilities.map((item) => [item.routeKey, item]));
 const sitePoolByRouteKey = new Map(sitePools.map((item) => [item.routeKey, item]));
 
 export const siteMeta = {
@@ -783,7 +852,7 @@ export const siteMeta = {
   totalClasses: siteClasses.length,
   totalSpecialisations: siteSpecialisations.length,
   totalPools: sitePools.length,
-  totalAbilities: siteAbilities.length,
+  totalAbilities: allSiteAbilities.length,
   totalBuffs: siteBuffs.length,
   totalDebuffs: siteDebuffs.length
 };
@@ -805,7 +874,7 @@ export function getSpecialisationBySlug(slug: string): SiteSpecialisation | unde
 }
 
 export function getAbilities(): SiteAbility[] {
-  return siteAbilities;
+  return allSiteAbilities;
 }
 
 export function getPools(): SitePool[] {
@@ -821,7 +890,7 @@ export function getAbilityByRouteKey(routeKey: string): SiteAbility | undefined 
 }
 
 export function getAbilityRouteKeys(): string[] {
-  return siteAbilities.map((item) => item.routeKey);
+  return allSiteAbilities.map((item) => item.routeKey);
 }
 
 export function getAbilityRouteKeyById(id: string): string | undefined {
