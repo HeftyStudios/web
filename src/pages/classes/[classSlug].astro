@@ -20,7 +20,7 @@ if (!resolvedClass) {
 ---
 
 <BaseLayout title={`${resolvedClass.displayName} | Arena Game`} description={resolvedClass.description}>
-  <Breadcrumbs items={[{ href: base, label: "Home" }, { label: resolvedClass.displayName }]} />
+  <Breadcrumbs items={[{ href: base, label: "Home" }, { href: `${base}classes/`, label: "Classes" }, { label: resolvedClass.displayName }]} />
 
   <section class="hero">
     <span class="eyebrow">Class</span>
@@ -30,30 +30,6 @@ if (!resolvedClass) {
         <h1>{resolvedClass.displayName}</h1>
         <p class="lede">{resolvedClass.description}</p>
       </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="section-header">
-      <div>
-        <h2>Specialisations</h2>
-        <p>Each specialisation page groups the accessible pools and their linked abilities.</p>
-      </div>
-    </div>
-    <div class="grid cards">
-      {
-        resolvedClass.specialisations.map((spec) => (
-          <article class="card">
-            <a href={`${base}specialisations/${spec.slug}/`}>
-              <h3>{spec.displayName}</h3>
-              <div class="badge-row">
-                <span class="chip">{spec.role}</span>
-              </div>
-              <p>{spec.description}</p>
-            </a>
-          </article>
-        ))
-      }
     </div>
   </section>
 
@@ -96,4 +72,33 @@ if (!resolvedClass) {
       </section>
     ) : null
   }
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Specialisations</h2>
+        <p>Each specialisation page groups the accessible pools and their linked abilities.</p>
+      </div>
+    </div>
+    <div class="grid cards">
+      {
+        resolvedClass.specialisations.map((spec) => (
+          <article class="card">
+            <a href={`${base}specialisations/${spec.slug}/`}>
+              <div class="card-title">
+                <IconBadge name={spec.displayName} icon={spec.icon} />
+                <div>
+                  <h3>{spec.displayName}</h3>
+                  <div class="badge-row">
+                    <span class="chip">{spec.role}</span>
+                  </div>
+                </div>
+              </div>
+              <p>{spec.description}</p>
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </section>
 </BaseLayout>

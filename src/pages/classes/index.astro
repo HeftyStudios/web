@@ -1,0 +1,49 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import IconBadge from "../../components/IconBadge.astro";
+import { getClasses, siteMeta } from "../../data/gameData";
+
+const classes = getClasses();
+const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+---
+
+<BaseLayout title="Classes | Arena Game" description="Browse Arena Game classes and jump into their specialisations.">
+  <Breadcrumbs items={[{ href: base, label: "Home" }, { label: "Classes" }]} />
+
+  <section class="hero">
+    <span class="eyebrow">Class Roster</span>
+    <h1>All classes, with their specialisations and resource models.</h1>
+    <p class="lede">
+      Start with a class, then move into its specialisations and their accessible ability pools.
+    </p>
+    <div class="badge-row">
+      <span class="badge">{siteMeta.totalClasses} classes</span>
+      <span class="badge">{siteMeta.totalSpecialisations} specialisations</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="grid cards">
+      {
+        classes.map((playerClass) => (
+          <article class="card">
+            <a href={`${base}classes/${playerClass.slug}/`}>
+              <div class="card-title">
+                <IconBadge name={playerClass.displayName} icon={playerClass.icon} />
+                <div>
+                  <h3>{playerClass.displayName}</h3>
+                  <p>{playerClass.description}</p>
+                </div>
+              </div>
+              <div class="badge-row">
+                <span class="chip">{playerClass.specialisations.length} specialisations</span>
+                {playerClass.secondaryResource[0] ? <span class="chip">{playerClass.secondaryResource[0].value}</span> : null}
+              </div>
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,63 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import { getSpecialisations } from "../../data/gameData";
+
+type RoleSummary = {
+  name: string;
+  slug: string;
+  specialisationCount: number;
+};
+
+function toRoleSlug(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+const roles = Array.from(
+  getSpecialisations().reduce((map, specialisation) => {
+    const slug = toRoleSlug(specialisation.role);
+    const existing = map.get(slug);
+
+    if (existing) {
+      existing.specialisationCount += 1;
+      return map;
+    }
+
+    map.set(slug, {
+      name: specialisation.role,
+      slug,
+      specialisationCount: 1
+    });
+    return map;
+  }, new Map<string, RoleSummary>()).values()
+).sort((left, right) => left.name.localeCompare(right.name));
+---
+
+<BaseLayout title="Roles | Arena Game" description="Browse Arena Game combat roles.">
+  <Breadcrumbs items={[{ href: base, label: "Home" }, { label: "Roles" }]} />
+
+  <section class="hero">
+    <span class="eyebrow">Combat Roles</span>
+    <h1>Role reference</h1>
+    <p class="lede">This section is ready for fuller role guidance. For now, each role page lists the linked specialisations.</p>
+  </section>
+
+  <section>
+    <div class="grid cards">
+      {
+        roles.map((role) => (
+          <article class="card">
+            <a href={`${base}roles/${role.slug}/`}>
+              <h2>{role.name}</h2>
+              <div class="badge-row">
+                <span class="chip">{role.specialisationCount} specialisations</span>
+              </div>
+              <p>Open this role page to add or review role guidance later.</p>
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+</BaseLayout>

@@ -4,6 +4,10 @@ import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import IconBadge from "../../components/IconBadge.astro";
 import { getSpecialisationBySlug, getSpecialisations } from "../../data/gameData";
 
+function toRoleSlug(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
 export function getStaticPaths() {
   return getSpecialisations().map((specialisation) => ({
     params: { specSlug: specialisation.slug },
@@ -23,6 +27,7 @@ if (!resolvedSpec) {
   <Breadcrumbs
     items={[
       { href: base, label: "Home" },
+      { href: `${base}classes/`, label: "Classes" },
       { href: `${base}classes/${resolvedSpec.classSlug}/`, label: resolvedSpec.classDisplayName },
       { label: resolvedSpec.displayName }
     ]}
@@ -35,9 +40,8 @@ if (!resolvedSpec) {
       <div>
         <h1>{resolvedSpec.displayName}</h1>
         <div class="badge-row">
-          <span class="badge">{resolvedSpec.classDisplayName}</span>
-          <span class="badge">{resolvedSpec.role}</span>
-          <span class="badge">{resolvedSpec.abilityPools.length} pools</span>
+          <span class="badge">Class: {resolvedSpec.classDisplayName}</span>
+          <a class="badge" href={`${base}roles/${toRoleSlug(resolvedSpec.role)}/`}>Role: {resolvedSpec.role}</a>
         </div>
         <p class="lede">{resolvedSpec.description}</p>
       </div>
@@ -61,26 +65,40 @@ if (!resolvedSpec) {
                 <p>{pool.description || "No description provided in the export."}</p>
               </div>
               <div class="badge-row">
-                <span class="badge">{pool.totalPoints} points</span>
-                <span class="badge">{pool.abilities.length} abilities</span>
+                <span class="badge">{pool.totalPoints} points available</span>
               </div>
             </div>
             {pool.unlockRequirements.length > 0 ? (
-              <div class="badge-row" style="margin-bottom: 0.9rem;">
-                {pool.unlockRequirements.map((entry) => (
-                  <span class="chip">{entry}</span>
-                ))}
-              </div>
+              <>
+                <h4 style="margin: 0 0 0.7rem;">Unlocks</h4>
+                <div class="badge-row" style="margin-bottom: 0.9rem;">
+                  {pool.unlockRequirements.map((entry) => (
+                    <span class="chip">{entry}</span>
+                  ))}
+                </div>
+              </>
             ) : null}
             <div class="grid cards">
               {pool.abilities.map((ability) => (
-                <article class="ability-card">
+                <article class="card">
                   <a href={`${base}abilities/${ability.routeKey}/`}>
-                    <h3>{ability.displayName}</h3>
-                    <div class="badge-row">
-                      <span class="chip">Level {ability.level}</span>
-                      <span class="chip">{ability.loadoutKind}</span>
+                    <div class="card-title">
+                      <IconBadge name={ability.displayName} icon={ability.icon} />
+                      <div>
+                        <h3>{ability.displayName}</h3>
+                        <div class="badge-row">
+                          {ability.isAutoAttack ? (
+                            <span class="chip">Auto Attack</span>
+                          ) : (
+                            <>
+                              <span class="chip">Level {ability.level}</span>
+                              <span class="chip">{ability.loadoutKind}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                    <p>{ability.description || "Open the ability page to inspect its combat details."}</p>
                   </a>
                 </article>
               ))}

@@ -1,0 +1,121 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import IconBadge from "../../components/IconBadge.astro";
+import { getSpecialisations } from "../../data/gameData";
+import type { SiteSpecialisation } from "../../data/gameData";
+
+type RolePage = {
+  name: string;
+  slug: string;
+  specialisations: SiteSpecialisation[];
+};
+
+function toRoleSlug(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function buildRoles(specialisations: SiteSpecialisation[]): RolePage[] {
+  return Array.from(
+    specialisations
+      .reduce((map, specialisation) => {
+        const slug = toRoleSlug(specialisation.role);
+        const existing = map.get(slug);
+
+        if (existing) {
+          existing.specialisations.push(specialisation);
+          return map;
+        }
+
+        map.set(slug, {
+          name: specialisation.role,
+          slug,
+          specialisations: [specialisation]
+        });
+        return map;
+      }, new Map<string, RolePage>())
+      .values()
+  );
+}
+
+export function getStaticPaths() {
+  const roles = Array.from(
+    getSpecialisations()
+      .reduce((map, specialisation) => {
+        const slug = specialisation.role.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+        const existing = map.get(slug);
+
+        if (existing) {
+          existing.specialisations.push(specialisation);
+          return map;
+        }
+
+        map.set(slug, {
+          name: specialisation.role,
+          slug,
+          specialisations: [specialisation]
+        });
+        return map;
+      }, new Map<string, RolePage>())
+      .values()
+  );
+
+  return roles.map((role) => ({
+    params: { roleSlug: role.slug },
+    props: { role }
+  }));
+}
+
+const { role } = Astro.props;
+const resolvedRole = role ?? buildRoles(getSpecialisations()).find((entry) => entry.slug === Astro.params.roleSlug);
+const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+
+if (!resolvedRole) {
+  throw new Error(`Missing role for slug '${Astro.params.roleSlug}'.`);
+}
+---
+
+<BaseLayout title={`${resolvedRole.name} | Arena Game`} description={`${resolvedRole.name} role overview.`}>
+  <Breadcrumbs
+    items={[
+      { href: base, label: "Home" },
+      { href: `${base}roles/`, label: "Roles" },
+      { label: resolvedRole.name }
+    ]}
+  />
+
+  <section class="hero">
+    <span class="eyebrow">Combat Role</span>
+    <h1>{resolvedRole.name}</h1>
+    <p class="lede">Role-specific guidance will go here once you provide the content. The linked specialisations are shown below in the meantime.</p>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div>
+        <h2>Linked Specialisations</h2>
+        <p>Specialisations currently tagged with this role in the data export.</p>
+      </div>
+    </div>
+    <div class="grid cards">
+      {
+        resolvedRole.specialisations.map((specialisation) => (
+          <article class="card">
+            <a href={`${base}specialisations/${specialisation.slug}/`}>
+              <div class="card-title">
+                <IconBadge name={specialisation.displayName} icon={specialisation.icon} />
+                <div>
+                  <h3>{specialisation.displayName}</h3>
+                  <div class="badge-row">
+                    <span class="chip">{specialisation.classDisplayName}</span>
+                  </div>
+                </div>
+              </div>
+              <p>{specialisation.description}</p>
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+</BaseLayout>
