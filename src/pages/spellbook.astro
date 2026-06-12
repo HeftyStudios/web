@@ -65,29 +65,23 @@ const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL :
             <article class="card" data-search={searchText} data-tag={pool.tag}>
               <a href={`${base}pools/${pool.routeKey}/`}>
                 <div class="card-title">
-                  <IconBadge name={pool.displayName} />
+                  <IconBadge name={pool.displayName} icon={pool.icon} />
                   <div>
                     <h3>{pool.displayName}</h3>
                     <div class="badge-row">
                       <span class="chip">{pool.abilities.length} abilities</span>
-                      <span class="chip">{pool.specialisations.length} specialisations</span>
                       <span class="chip">{pool.tag}</span>
                     </div>
                   </div>
                 </div>
                 <p>{pool.description || "Open this pool to browse its grouped abilities."}</p>
-                <div class="badge-row">
-                  {pool.specialisations.slice(0, 3).map((entry) => (
-                    <span class="chip">
-                      {entry.classDisplayName} / {entry.displayName}
-                    </span>
-                  ))}
-                </div>
-                <div class="badge-row">
-                  {pool.abilities.slice(0, 3).map((ability) => (
-                    <span class="chip">{ability.displayName}</span>
-                  ))}
-                </div>
+                {pool.damageTypes.length > 0 ? (
+                  <div class="badge-row">
+                    {pool.damageTypes.map((damageType) => (
+                      <span class="chip">{damageType}</span>
+                    ))}
+                  </div>
+                ) : null}
               </a>
             </article>
           );

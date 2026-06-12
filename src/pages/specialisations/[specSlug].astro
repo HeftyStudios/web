@@ -60,6 +60,7 @@ if (!resolvedSpec) {
         resolvedSpec.abilityPools.map((pool) => (
           <article class="pool-card">
             <div class="section-header" style="margin-top: 0;">
+              <IconBadge name={pool.displayName} icon={pool.icon} />
               <div>
                 <h3><a href={`${base}pools/${pool.routeKey}/`}>{pool.displayName}</a></h3>
                 <p>{pool.description || "No description provided in the export."}</p>
@@ -78,7 +79,7 @@ if (!resolvedSpec) {
                 </div>
               </>
             ) : null}
-            <div class="grid cards">
+            <div class="grid cards cards--small">
               {pool.abilities.map((ability) => (
                 <article class="card">
                   <a href={`${base}abilities/${ability.routeKey}/`}>

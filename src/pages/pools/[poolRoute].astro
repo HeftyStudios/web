@@ -24,6 +24,7 @@ if (!resolvedPool) {
   <Breadcrumbs items={[{ href: base, label: "Home" }, { href: `${base}spellbook/`, label: "Spellbook" }, { label: resolvedPool.displayName }]} />
 
   <section class="hero">
+    <IconBadge name={resolvedPool.displayName} icon={resolvedPool.icon} />
     <span class="eyebrow">Ability Pool</span>
     <h1>{resolvedPool.displayName}</h1>
     <p class="lede">{resolvedPool.description || "A grouped pool of abilities exported from the Arena Game data bundle."}</p>

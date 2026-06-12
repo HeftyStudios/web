@@ -58,7 +58,6 @@ if (!resolvedClass) {
         <div class="section-header">
           <div>
             <h2>Secondary Resource</h2>
-            <p>Resource rules exported with the class definition.</p>
           </div>
         </div>
         <dl class="stat-grid">
@@ -69,6 +68,7 @@ if (!resolvedClass) {
             </div>
           ))}
         </dl>
+        {resolvedClass.secondaryResource[0]?.description ? <p>{resolvedClass.secondaryResource[0].description}</p> : null}
       </section>
     ) : null
   }

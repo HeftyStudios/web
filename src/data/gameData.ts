@@ -48,6 +48,7 @@ type RawAbilityPool = {
   displayName: string;
   slug: string;
   description: string;
+  icon: UnknownRecord | null;
   tag?: {
     raw: number;
     name: string;
@@ -267,6 +268,7 @@ export type SiteAbilityPool = {
   slug: string;
   displayName: string;
   description: string;
+  icon: SiteIcon;
   tag: string;
   totalPoints: number;
   unlockRequirements: string[];
@@ -279,7 +281,9 @@ export type SitePool = {
   slug: string;
   displayName: string;
   description: string;
+  icon: SiteIcon;
   tag: string;
+  damageTypes: string[];
   abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind" | "description" | "icon" | "isAutoAttack">[];
   specialisations: {
     id: string;
@@ -313,7 +317,7 @@ export type SiteClass = {
   description: string;
   icon: SiteIcon;
   stats: { label: string; value: string }[];
-  secondaryResource: { label: string; value: string }[];
+  secondaryResource: { label: string; value: string; description: string }[];
   specialisations: Pick<SiteSpecialisation, "id" | "slug" | "displayName" | "role" | "description" | "icon">[];
 };
 
@@ -373,7 +377,12 @@ function toPairs(record: UnknownRecord | null | undefined, preferredOrder: strin
     const raw = record[key];
     return {
       label: startCase(key),
-      value: key === "criticalStrikeChance" && typeof raw === "number" ? `${(raw * 100).toFixed(0)}%` : formatValue(raw)
+      value:
+        key === "criticalStrikeChance" && typeof raw === "number"
+          ? `${(raw * 100).toFixed(0)}%`
+          : key === "haste" && typeof raw === "number"
+            ? `${raw.toFixed(0)}%`
+            : formatValue(raw)
     };
   });
 }
@@ -487,6 +496,13 @@ function compareAbilities(left: Pick<SiteAbility, "displayName" | "level" | "isA
   }
 
   return left.displayName.localeCompare(right.displayName);
+}
+
+function extractDamageTypes(ability: Pick<SiteAbility, "damageSummary">): string[] {
+  return ability.damageSummary
+    .filter((entry) => entry.startsWith("Effect Type:") || entry.startsWith("Element:"))
+    .map((entry) => entry.split(": ").slice(1).join(": ").trim())
+    .filter((value) => value !== "" && value !== "None" && value !== "Untyped" && value !== "Unknown");
 }
 
 assertGameData(rawGameData);
@@ -735,6 +751,7 @@ const siteSpecialisations = gameData.specialisations.map<SiteSpecialisation>((sp
           slug: pool.slug,
           displayName: pool.displayName,
           description: pool.description,
+          icon: toIcon(pool.icon),
           tag: pool.tag?.name ?? "Shared",
           totalPoints: access.totalPoints,
           unlockRequirements: summarizeUnlockRequirements(access.unlockRequirements),
@@ -764,30 +781,37 @@ const siteSpecialisations = gameData.specialisations.map<SiteSpecialisation>((sp
 const siteSpecById = new Map(siteSpecialisations.map((item) => [item.id, item]));
 
 const sitePools = gameData.abilityPools
-  .map<SitePool>((pool) => ({
-    id: pool.id,
-    routeKey: poolRouteKeys.get(pool.id) ?? pool.slug,
-    slug: pool.slug,
-    displayName: pool.displayName,
-    description: pool.description,
-    tag: pool.tag?.name ?? "Shared",
-    abilities: pool.entries
+  .map<SitePool>((pool) => {
+    const resolvedAbilities = pool.entries
       .filter((entry) => entry.kind === "ability" || entry.kind === "autoAttack")
       .map((entry) => siteAbilityById.get(entry.asset.id))
-      .filter((item): item is SiteAbility => item !== undefined)
-      .map((ability) => ({
-        id: ability.id,
-        routeKey: ability.routeKey,
-        slug: ability.slug,
-        displayName: ability.displayName,
-        description: ability.description,
-        level: ability.level,
-        loadoutKind: ability.loadoutKind,
-        icon: ability.icon,
-        isAutoAttack: ability.isAutoAttack
-      }))
-      .sort(compareAbilities),
-    specialisations: gameData.specialisations
+      .filter((item): item is SiteAbility => item !== undefined);
+
+    return {
+      id: pool.id,
+      routeKey: poolRouteKeys.get(pool.id) ?? pool.slug,
+      slug: pool.slug,
+      displayName: pool.displayName,
+      description: pool.description,
+      icon: toIcon(pool.icon),
+      tag: pool.tag?.name ?? "Shared",
+      damageTypes: [...new Set(resolvedAbilities.flatMap((ability) => extractDamageTypes(ability)))].sort((left, right) =>
+        left.localeCompare(right)
+      ),
+      abilities: resolvedAbilities
+        .map((ability) => ({
+          id: ability.id,
+          routeKey: ability.routeKey,
+          slug: ability.slug,
+          displayName: ability.displayName,
+          description: ability.description,
+          level: ability.level,
+          loadoutKind: ability.loadoutKind,
+          icon: ability.icon,
+          isAutoAttack: ability.isAutoAttack
+        }))
+        .sort(compareAbilities),
+      specialisations: gameData.specialisations
       .flatMap((spec) => {
         const access = spec.abilityPoolAccesses.find((item) => item.pool.id === pool.id);
         if (!access) {
@@ -808,7 +832,8 @@ const sitePools = gameData.abilityPools
           }
         ];
       })
-  }))
+    };
+  })
   .filter((pool) => pool.abilities.length > 0);
 
 const siteClasses = gameData.classes.map<SiteClass>((item) => ({
@@ -831,7 +856,8 @@ const siteClasses = gameData.classes.map<SiteClass>((item) => ({
     const [label, ...rest] = entry.split(": ");
     return {
       label,
-      value: rest.join(": ")
+      value: rest.join(": "),
+      description: isObject(item.secondaryResource) ? asString(item.secondaryResource.description) : ""
     };
   }),
   specialisations: item.specialisations

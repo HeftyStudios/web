@@ -1,4 +1,7 @@
-.PHONY: check build test
+.PHONY: dev check build test
+
+dev:
+	npm run dev
 
 check:
 	npm run check
