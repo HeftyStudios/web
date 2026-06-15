@@ -178,6 +178,43 @@ const pool = resolvedAbility.poolMemberships[0];
     )}
   </section>
 
+  {resolvedAbility.triggeredAbilities.length > 0 ? (
+    <section>
+      <div class="section-header">
+        <div>
+          <h2>Triggered Abilities</h2>
+          <p>Related ability definitions referenced by this ability, including trap and proc effects.</p>
+        </div>
+      </div>
+      <div class="grid cards">
+        {resolvedAbility.triggeredAbilities.map((triggeredAbility) => (
+          <article class="card">
+            <a href={`${base}abilities/${triggeredAbility.routeKey}/`}>
+              <div class="card-title">
+                <IconBadge name={triggeredAbility.displayName} icon={triggeredAbility.icon} />
+                <div>
+                  <h3>{triggeredAbility.displayName}</h3>
+                  <p>{triggeredAbility.description}</p>
+                </div>
+              </div>
+              <div class="badge-row">
+                <span class="chip">{triggeredAbility.relation}</span>
+                {triggeredAbility.isAutoAttack ? (
+                  <span class="chip">Auto Attack</span>
+                ) : (
+                  <>
+                    <span class="chip">Level {triggeredAbility.level}</span>
+                    <span class="chip">{triggeredAbility.loadoutKind}</span>
+                  </>
+                )}
+              </div>
+            </a>
+          </article>
+        ))}
+      </div>
+    </section>
+  ) : null}
+
   <section>
     <div class="section-header">
       <div>

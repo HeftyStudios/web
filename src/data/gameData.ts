@@ -260,6 +260,18 @@ export type SiteAbility = {
   targetingSummary: string[];
   linkedBuffs: SiteStatusLink[];
   linkedDebuffs: SiteStatusLink[];
+  triggeredAbilities: {
+    relation: string;
+    id: string;
+    routeKey: string;
+    slug: string;
+    displayName: string;
+    description: string;
+    icon: SiteIcon;
+    level: number;
+    loadoutKind: string;
+    isAutoAttack: boolean;
+  }[];
   poolMemberships: {
     id: string;
     routeKey: string;
@@ -473,40 +485,6 @@ function summarizeBehavior(behavior: RawStatusEffectBehavior): SiteStatusBehavio
   return { effectType, value };
 }
 
-function isPassiveMarkerBuff(buff: RawBuff | undefined): boolean {
-  return buff?.categories?.names?.includes("PassiveMarker") ?? false;
-}
-
-function resolveMarkerBuffTargetId(
-  markerBuff: RawBuff,
-  rawBuffs: Map<string, RawBuff>,
-  markerBuffIds: Set<string>
-): string | null {
-  const candidateIds = new Set<string>();
-
-  for (const behavior of markerBuff.behaviors) {
-    if (!isObject(behavior)) {
-      continue;
-    }
-
-    const referencedBuffs = [behavior.appliedBuff, behavior.trackedBuff];
-    for (const referencedBuff of referencedBuffs) {
-      if (!isObject(referencedBuff)) {
-        continue;
-      }
-
-      const candidateId = asString(referencedBuff.id);
-      if (!candidateId || markerBuffIds.has(candidateId) || !rawBuffs.has(candidateId)) {
-        continue;
-      }
-
-      candidateIds.add(candidateId);
-    }
-  }
-
-  return candidateIds.size === 1 ? [...candidateIds][0] ?? null : null;
-}
-
 function mapStatusBehavior(
   behavior: RawStatusEffectBehavior,
   rawBuffs: Map<string, RawBuff>,
@@ -655,6 +633,41 @@ function extractDamageTypes(ability: Pick<SiteAbility, "damageSummary">): string
     .filter((value) => value !== "" && value !== "None" && value !== "Untyped" && value !== "Unknown");
 }
 
+function formatAbilityRelation(path: string): string {
+  return path
+    .replace(/\[\d+\]/g, "")
+    .split(".")
+    .filter((segment) => segment !== "")
+    .map((segment) => startCase(segment))
+    .join(" > ");
+}
+
+function collectNestedAbilityRefs(root: UnknownRecord): Array<{ id: string; relation: string }> {
+  const refs = new Map<string, { id: string; relation: string }>();
+
+  function walk(value: unknown, path = ""): void {
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => walk(item, `${path}[${index}]`));
+      return;
+    }
+
+    if (!isObject(value)) {
+      return;
+    }
+
+    if (value.type === "ability" && typeof value.id === "string") {
+      refs.set(value.id, { id: value.id, relation: formatAbilityRelation(path) || "Triggered Ability" });
+    }
+
+    for (const [key, nested] of Object.entries(value)) {
+      walk(nested, path ? `${path}.${key}` : key);
+    }
+  }
+
+  walk(root);
+  return [...refs.values()];
+}
+
 assertGameData(rawGameData);
 const gameData: RawGameData = rawGameData;
 
@@ -668,14 +681,8 @@ const buffRouteKeys = routeKeysBySlug(gameData.buffs);
 const debuffRouteKeys = routeKeysBySlug(gameData.debuffs);
 const rawBuffById = new Map(gameData.buffs.map((item) => [item.id, item]));
 const rawDebuffById = new Map(gameData.debuffs.map((item) => [item.id, item]));
-const passiveMarkerBuffIds = new Set(gameData.buffs.filter(isPassiveMarkerBuff).map((item) => item.id));
-const resolvedMarkerBuffIdById = new Map(
-  gameData.buffs
-    .filter((buff) => passiveMarkerBuffIds.has(buff.id))
-    .flatMap((buff) => {
-      const resolvedId = resolveMarkerBuffTargetId(buff, rawBuffById, passiveMarkerBuffIds);
-      return resolvedId ? [[buff.id, resolvedId] as const] : [];
-    })
+const rawTriggeredAbilityRefsByAbilityId = new Map(
+  gameData.abilities.map((ability) => [ability.id, collectNestedAbilityRefs(ability as UnknownRecord).filter((ref) => ref.id !== ability.id)])
 );
 
 const specClassLinks = new Map<string, RawClass>();
@@ -720,9 +727,7 @@ for (const spec of gameData.specialisations) {
   }
 }
 
-const siteBuffs = gameData.buffs
-  .filter((buff) => !passiveMarkerBuffIds.has(buff.id))
-  .map<SiteBuff>((buff) => ({
+const siteBuffs = gameData.buffs.map<SiteBuff>((buff) => ({
     id: buff.id,
     routeKey: buffRouteKeys.get(buff.id) ?? buff.slug,
     slug: buff.slug,
@@ -800,9 +805,8 @@ const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
   ]),
   linkedBuffs: ability.buffs
     .map((entry) => {
-      const resolvedBuffId = resolvedMarkerBuffIdById.get(entry.definition.id) ?? entry.definition.id;
-      const buff = siteBuffById.get(resolvedBuffId);
-      const rawBuff = rawBuffById.get(resolvedBuffId);
+      const buff = siteBuffById.get(entry.definition.id);
+      const rawBuff = rawBuffById.get(entry.definition.id);
       if (!buff) {
         return null;
       }
@@ -873,6 +877,7 @@ const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
       };
     })
     .filter((item): item is SiteStatusLink => item !== null),
+  triggeredAbilities: [],
   poolMemberships: (abilityPoolMembership.get(ability.id) ?? []).map((pool) => ({
     id: pool.id,
     routeKey: poolRouteKeys.get(pool.id) ?? pool.slug,
@@ -911,6 +916,7 @@ const siteAutoAttacks = gameData.autoAttacks.map<SiteAbility>((autoAttack) => ({
   ),
   linkedBuffs: [],
   linkedDebuffs: [],
+  triggeredAbilities: [],
   poolMemberships: [],
   specialisationLinks: []
 }));
@@ -918,6 +924,30 @@ const siteAutoAttacks = gameData.autoAttacks.map<SiteAbility>((autoAttack) => ({
 const allSiteAbilities = [...siteAbilities, ...siteAutoAttacks];
 
 const siteAbilityById = new Map(allSiteAbilities.map((item) => [item.id, item]));
+
+for (const ability of siteAbilities) {
+  ability.triggeredAbilities = (rawTriggeredAbilityRefsByAbilityId.get(ability.id) ?? [])
+    .map((entry) => {
+      const relatedAbility = siteAbilityById.get(entry.id);
+      if (!relatedAbility) {
+        return null;
+      }
+
+      return {
+        relation: entry.relation,
+        id: relatedAbility.id,
+        routeKey: relatedAbility.routeKey,
+        slug: relatedAbility.slug,
+        displayName: relatedAbility.displayName,
+        description: relatedAbility.description,
+        icon: relatedAbility.icon,
+        level: relatedAbility.level,
+        loadoutKind: relatedAbility.loadoutKind,
+        isAutoAttack: relatedAbility.isAutoAttack
+      };
+    })
+    .filter((item): item is NonNullable<(typeof ability.triggeredAbilities)[number]> => item !== null);
+}
 
 const siteSpecialisations = gameData.specialisations.map<SiteSpecialisation>((spec) => {
   const linkedClass = specClassLinks.get(spec.id);
