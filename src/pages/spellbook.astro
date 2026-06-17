@@ -25,7 +25,7 @@ const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL :
 
   <section class="search-panel panel">
     <label for="spellbook-search" class="muted">Search pools</label>
-    <input id="spellbook-search" type="search" placeholder="Search by pool name, class, specialisation, or ability name" />
+    <input id="spellbook-search" type="search" placeholder="Search by pool, class, specialisation, ability, or category" />
     <div class="badge-row" style="margin-top: 0.9rem;">
       <label class="chip" for="filter-shared">
         <input id="filter-shared" type="checkbox" data-filter-tag="Shared" checked style="margin: 0;" />
@@ -55,7 +55,9 @@ const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL :
             pool.displayName,
             pool.description,
             pool.tag,
-            ...pool.abilities.map((ability) => `${ability.displayName} ${ability.description} ${ability.loadoutKind}`),
+            ...pool.abilities.map(
+              (ability) => `${ability.displayName} ${ability.description} ${ability.loadoutKind} ${ability.categoryNames.join(" ")}`
+            ),
             ...pool.specialisations.map((entry) => `${entry.classDisplayName} ${entry.displayName}`)
           ]
             .join(" ")

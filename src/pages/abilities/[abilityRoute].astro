@@ -59,12 +59,12 @@ const pool = resolvedAbility.poolMemberships[0];
           {resolvedAbility.isAutoAttack ? (
             <span class="badge">Auto Attack</span>
           ) : (
-            <>
-              <span class="badge">Level {resolvedAbility.level}</span>
-              <span class="badge">{resolvedAbility.loadoutKind}</span>
-            </>
+            <span class="badge">Level {resolvedAbility.level}</span>
           )}
           {pool ? <span class="badge">{pool.displayName}</span> : null}
+          {resolvedAbility.categoryNames.map((categoryName) => (
+            <span class="chip">{categoryName}</span>
+          ))}
         </div>
         <p class="lede">{resolvedAbility.description || "Core attack behavior exported from the Arena Game data bundle."}</p>
       </div>

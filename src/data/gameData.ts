@@ -81,6 +81,10 @@ type RawAbility = {
   slug: string;
   description: string;
   icon: UnknownRecord | null;
+  categories?: {
+    raw: number;
+    names?: string[];
+  };
   level: number;
   loadoutKind: {
     name: string;
@@ -95,6 +99,11 @@ type RawAbility = {
   presentation: UnknownRecord;
   buffs: RawAbilityEffectRef[];
   debuffs: RawAbilityEffectRef[];
+  passiveActivation?: {
+    procAbility?: AssetRef | null;
+  } | null;
+  specialEffects?: UnknownRecord[];
+  passiveControlImmunities?: Array<{ name?: string } | string>;
 };
 
 type RawAutoAttack = {
@@ -246,18 +255,25 @@ export type SiteDebuff = {
 export type SiteAbility = {
   id: string;
   routeKey: string;
+  detailRouteKey: string;
   slug: string;
   displayName: string;
   description: string;
   icon: SiteIcon;
   level: number;
   loadoutKind: string;
+  categoryNames: string[];
   isAutoAttack: boolean;
   outputSummary: string[];
   damageSummary: string[];
   timingSummary: string[];
   resourceSummary: string[];
   targetingSummary: string[];
+  movementSummary: string[];
+  worldEffectSummary: string[];
+  presentationSummary: string[];
+  specialEffectsSummary: string[];
+  passiveControlImmunityNames: string[];
   linkedBuffs: SiteStatusLink[];
   linkedDebuffs: SiteStatusLink[];
   triggeredAbilities: {
@@ -298,7 +314,7 @@ export type SiteAbilityPool = {
   tag: string;
   totalPoints: number;
   unlockRequirements: string[];
-  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "description" | "level" | "loadoutKind" | "icon" | "isAutoAttack">[];
+  abilities: Pick<SiteAbility, "id" | "routeKey" | "detailRouteKey" | "slug" | "displayName" | "description" | "level" | "loadoutKind" | "icon" | "isAutoAttack" | "categoryNames">[];
 };
 
 export type SitePool = {
@@ -310,7 +326,7 @@ export type SitePool = {
   icon: SiteIcon;
   tag: string;
   damageTypes: string[];
-  abilities: Pick<SiteAbility, "id" | "routeKey" | "slug" | "displayName" | "level" | "loadoutKind" | "description" | "icon" | "isAutoAttack">[];
+  abilities: Pick<SiteAbility, "id" | "routeKey" | "detailRouteKey" | "slug" | "displayName" | "level" | "loadoutKind" | "description" | "icon" | "isAutoAttack" | "categoryNames">[];
   specialisations: {
     id: string;
     slug: string;
@@ -463,6 +479,61 @@ function summarizeObject(record: UnknownRecord | null | undefined, keys: string[
   return keys
     .filter((key) => key in record)
     .map((key) => `${startCase(key)}: ${formatValue(record[key])}`);
+}
+
+function summarizeNamedArray(values: Array<unknown> | null | undefined): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map((value) => {
+      if (typeof value === "string") {
+        return value;
+      }
+
+      if (isObject(value) && typeof value.name === "string") {
+        return value.name;
+      }
+
+      return "";
+    })
+    .filter((value) => value !== "");
+}
+
+function summarizeSpecialEffects(effects: UnknownRecord[] | null | undefined): string[] {
+  if (!Array.isArray(effects) || effects.length === 0) {
+    return [];
+  }
+
+  return effects.map((effect) => {
+    if (!isObject(effect)) {
+      return "Unknown effect";
+    }
+
+    const label = isObject(effect.effect) ? asString(effect.effect.name, "Effect") : "Effect";
+    const details = [
+      isObject(effect.statusType) ? `Status Type: ${asString(effect.statusType.name)}` : "",
+      typeof effect.scalar === "number" ? `Scalar: ${formatValue(effect.scalar)}` : "",
+      isObject(effect.inputDebuffCategories)
+        ? (() => {
+            const names = asStringArray(effect.inputDebuffCategories.names);
+            return names.length > 0 ? `Debuff Categories: ${names.join(", ")}` : "";
+          })()
+        : "",
+      Array.isArray(effect.inputDebuffs) && effect.inputDebuffs.length > 0
+        ? `Input Debuffs: ${effect.inputDebuffs.map((entry) => formatValue(entry)).join(", ")}`
+        : "",
+      effect.sourceDebuff ? `Source Debuff: ${formatValue(effect.sourceDebuff)}` : "",
+      effect.outputDebuff ? `Output Debuff: ${formatValue(effect.outputDebuff)}` : "",
+      effect.targetDebuff ? `Target Debuff: ${formatValue(effect.targetDebuff)}` : "",
+      typeof effect.timeToDealDamageOver === "number" && effect.timeToDealDamageOver > 0
+        ? `Time To Deal Damage Over: ${formatValue(effect.timeToDealDamageOver)}`
+        : ""
+    ].filter((value) => value !== "");
+
+    return details.length > 0 ? `${label}: ${details.join(" | ")}` : label;
+  });
 }
 
 function routeKeysBySlug<T extends { id: string; slug: string }>(items: T[]): Map<string, string> {
@@ -681,6 +752,7 @@ const buffRouteKeys = routeKeysBySlug(gameData.buffs);
 const debuffRouteKeys = routeKeysBySlug(gameData.debuffs);
 const rawBuffById = new Map(gameData.buffs.map((item) => [item.id, item]));
 const rawDebuffById = new Map(gameData.debuffs.map((item) => [item.id, item]));
+const rawAbilityById = new Map(gameData.abilities.map((item) => [item.id, item]));
 const rawTriggeredAbilityRefsByAbilityId = new Map(
   gameData.abilities.map((ability) => [ability.id, collectNestedAbilityRefs(ability as UnknownRecord).filter((ref) => ref.id !== ability.id)])
 );
@@ -763,12 +835,14 @@ const siteDebuffById = new Map(siteDebuffs.map((item) => [item.id, item]));
 const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
   id: ability.id,
   routeKey: abilityRouteKeys.get(ability.id) ?? ability.slug,
+  detailRouteKey: abilityRouteKeys.get(ability.id) ?? ability.slug,
   slug: ability.slug,
   displayName: ability.displayName,
   description: ability.description,
   icon: toIcon(ability.icon),
   level: ability.level,
   loadoutKind: ability.loadoutKind.name,
+  categoryNames: asStringArray(ability.categories?.names),
   isAutoAttack: false,
   outputSummary: summarizeObject(ability.output, [
     "type",
@@ -803,6 +877,40 @@ const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
     "targetAffinity",
     "deliveryMode"
   ]),
+  movementSummary: summarizeObject(ability.movement, [
+    "chargeSpeed",
+    "chargeStopDistance",
+    "vaultSpeed",
+    "vaultArcHeight",
+    "vaultLandingClearanceRadius",
+    "coneAngle",
+    "coneLength"
+  ]),
+  worldEffectSummary: summarizeObject(ability.worldEffects, [
+    "projectileSpeed",
+    "areaRadius",
+    "spawnsPersistentArea",
+    "areaDuration",
+    "areaTickInterval",
+    "areaRequiresLineOfSight",
+    "targetPointRequiresLineOfSight",
+    "spawnsArmedTrap",
+    "trapArmTime",
+    "trapDuration",
+    "replaceExistingTrap"
+  ]),
+  presentationSummary: summarizeObject(ability.presentation, [
+    "animationKey",
+    "casterEffectAnchor",
+    "casterEffectOffset",
+    "casterEffectFollowsCaster",
+    "targetEffectAnchor",
+    "targetEffectOffset",
+    "targetEffectFollowsTarget",
+    "effectLifetime"
+  ]),
+  specialEffectsSummary: summarizeSpecialEffects(ability.specialEffects),
+  passiveControlImmunityNames: summarizeNamedArray(ability.passiveControlImmunities),
   linkedBuffs: ability.buffs
     .map((entry) => {
       const buff = siteBuffById.get(entry.definition.id);
@@ -900,12 +1008,14 @@ const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
 const siteAutoAttacks = gameData.autoAttacks.map<SiteAbility>((autoAttack) => ({
   id: autoAttack.id,
   routeKey: abilityRouteKeys.get(autoAttack.id) ?? autoAttack.slug,
+  detailRouteKey: abilityRouteKeys.get(autoAttack.id) ?? autoAttack.slug,
   slug: autoAttack.slug,
   displayName: autoAttack.displayName,
   description: autoAttack.description,
   icon: toIcon(autoAttack.icon),
   level: 0,
   loadoutKind: "Auto Attack",
+  categoryNames: ["Auto Attack"],
   isAutoAttack: true,
   outputSummary: [],
   damageSummary: summarizeObject(autoAttack.combat, ["damage"]),
@@ -914,6 +1024,11 @@ const siteAutoAttacks = gameData.autoAttacks.map<SiteAbility>((autoAttack) => ({
   targetingSummary: summarizeObject(autoAttack.combat, ["range", "requiresTarget", "requiresFacingTarget"]).concat(
     summarizeObject(autoAttack.delivery, ["mode", "projectileSpeed"])
   ),
+  movementSummary: [],
+  worldEffectSummary: [],
+  presentationSummary: [],
+  specialEffectsSummary: [],
+  passiveControlImmunityNames: [],
   linkedBuffs: [],
   linkedDebuffs: [],
   triggeredAbilities: [],
@@ -924,6 +1039,17 @@ const siteAutoAttacks = gameData.autoAttacks.map<SiteAbility>((autoAttack) => ({
 const allSiteAbilities = [...siteAbilities, ...siteAutoAttacks];
 
 const siteAbilityById = new Map(allSiteAbilities.map((item) => [item.id, item]));
+
+for (const ability of siteAbilities) {
+  const rawAbility = rawAbilityById.get(ability.id);
+  const procAbilityId = rawAbility?.passiveActivation?.procAbility?.id;
+  if (!procAbilityId) {
+    continue;
+  }
+
+  const procAbility = siteAbilityById.get(procAbilityId);
+  ability.detailRouteKey = procAbility?.routeKey ?? ability.routeKey;
+}
 
 for (const ability of siteAbilities) {
   ability.triggeredAbilities = (rawTriggeredAbilityRefsByAbilityId.get(ability.id) ?? [])
@@ -989,13 +1115,15 @@ const siteSpecialisations = gameData.specialisations.map<SiteSpecialisation>((sp
             .map((ability) => ({
               id: ability.id,
               routeKey: ability.routeKey,
+              detailRouteKey: ability.detailRouteKey,
               slug: ability.slug,
               displayName: ability.displayName,
               description: ability.description,
               level: ability.level,
               loadoutKind: ability.loadoutKind,
               icon: ability.icon,
-              isAutoAttack: ability.isAutoAttack
+              isAutoAttack: ability.isAutoAttack,
+              categoryNames: ability.categoryNames
             }))
             .sort(compareAbilities)
         };
@@ -1028,13 +1156,15 @@ const sitePools = gameData.abilityPools
         .map((ability) => ({
           id: ability.id,
           routeKey: ability.routeKey,
+          detailRouteKey: ability.detailRouteKey,
           slug: ability.slug,
           displayName: ability.displayName,
           description: ability.description,
           level: ability.level,
           loadoutKind: ability.loadoutKind,
           icon: ability.icon,
-          isAutoAttack: ability.isAutoAttack
+          isAutoAttack: ability.isAutoAttack,
+          categoryNames: ability.categoryNames
         }))
         .sort(compareAbilities),
       specialisations: gameData.specialisations
