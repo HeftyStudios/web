@@ -481,6 +481,25 @@ function summarizeObject(record: UnknownRecord | null | undefined, keys: string[
     .map((key) => `${startCase(key)}: ${formatValue(record[key])}`);
 }
 
+function summarizeResource(record: UnknownRecord | null | undefined): string[] {
+  if (!record) {
+    return [];
+  }
+
+  const costs = Array.isArray(record.costs)
+    ? record.costs.flatMap((cost) => {
+        if (!isObject(cost)) {
+          return [];
+        }
+
+        const type = isObject(cost.type) ? asString(cost.type.name) : "";
+        return type ? [`Cost: ${formatValue(cost.amount)} ${type}`] : [];
+      })
+    : [];
+
+  return [...costs, ...summarizeObject(record, ["restoreType", "restoreAmount"])];
+}
+
 function summarizeNamedArray(values: Array<unknown> | null | undefined): string[] {
   if (!Array.isArray(values)) {
     return [];
@@ -866,7 +885,7 @@ const siteAbilities = gameData.abilities.map<SiteAbility>((ability) => ({
     "sharedCooldown",
     "sharedCooldownGroup"
   ]),
-  resourceSummary: summarizeObject(ability.resource, ["costType", "cost", "restoreType", "restoreAmount"]),
+  resourceSummary: summarizeResource(ability.resource),
   targetingSummary: summarizeObject(ability.targeting, [
     "minimumRange",
     "range",

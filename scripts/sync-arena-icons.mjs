@@ -13,6 +13,7 @@ if (!fs.existsSync(sourceDir)) {
   process.exit(0);
 }
 
+fs.rmSync(targetDir, { recursive: true, force: true });
 fs.mkdirSync(targetDir, { recursive: true });
 fs.cpSync(sourceDir, targetDir, { recursive: true });
 
